@@ -5,7 +5,6 @@
 ## 入口说明
 
 - `index.html`：当前主入口，3D Three.js 太阳系模拟。
-- `index-2d.html`：旧版/备用 2D Canvas 页面，保留用于对照和低配备用，不作为当前主开发入口。
 - `serve.bat`：Windows 本地启动辅助脚本。引入 Vite 后，推荐优先使用 npm 命令启动。
 
 ## 科学精度边界
@@ -108,7 +107,6 @@ npm run preview
 
 ```text
 index.html                 3D 主页面
-index-2d.html              旧版/备用 2D 页面
 public/vendor/             构建时保留的 Three.js UMD 运行时文件
 src/styles.css             页面样式
 src/data/solar-system.js   太阳系数据、速度模式、近似星历
@@ -120,6 +118,7 @@ src/app/ui/                信息卡、行星列表、控制栏模块
 src/app/input-selection.js 3D 对象点击和悬停选择
 tests/                     Vitest 单元测试和 Playwright 冒烟测试
 textures/                  行星、月球、银河背景等贴图
+docs/                      部署指南、科学性验证等文档
 ```
 
 ## 资源说明

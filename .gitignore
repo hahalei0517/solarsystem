@@ -8,6 +8,5 @@ test-results/
 # 本地工具配置（不进仓库）
 .claude/
 
-# 大体积源音频备份（已压缩为 public/audio/space-ambient-1.mp3）
-太空音效1.wav
+# 音频源文件（部署用 MP3，见 public/audio/）
 *.wav
