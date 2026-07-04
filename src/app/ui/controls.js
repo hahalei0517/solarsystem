@@ -97,12 +97,12 @@ export function createControlsController({
     if (themeSelect) themeSelect.value = state.audioTheme;
   }
 
+  let qualityMSelect = null;
   function syncQualityControls() {
     document.querySelectorAll('#quality-seg button').forEach(button => {
       button.classList.toggle('active', button.dataset.quality === state.renderQuality);
     });
-    const qualitySelect = document.getElementById('quality-select');
-    if (qualitySelect) qualitySelect.value = state.renderQuality;
+    if (qualityMSelect) qualityMSelect.sync();
   }
 
   function updateSoloStatus() {
@@ -191,6 +191,46 @@ export function createControlsController({
     }).observe(card, { attributes: true, attributeFilter: ['class'] });
   }
 
+  // Custom inline dropdowns (mobile). Native <select> pops an OS picker modal; this opens in
+  // place below the trigger and closes on selection. .mselect is display:none on desktop, so
+  // the triggers never receive clicks there — desktop is unaffected.
+  const mselects = [];
+  function closeAllMSelects() { for (const m of mselects) m.close(); }
+  function setupMSelect(root, opts) {
+    if (!root) return { sync() {}, close() {} };
+    const trigger = root.querySelector('.mselect-trigger');
+    const label = root.querySelector('.mselect-label');
+    const menu = root.querySelector('.mselect-menu');
+    const options = root.querySelectorAll('.mselect-option');
+    const getValue = opts.getValue, onChange = opts.onChange;
+    function sync() {
+      const v = getValue();
+      options.forEach(o => o.classList.toggle('active', o.dataset.value === v));
+      const cur = root.querySelector('.mselect-option[data-value="' + v + '"]');
+      if (label && cur) label.textContent = cur.textContent;
+    }
+    function close() { root.classList.remove('open'); }
+    function open() {
+      closeAllMSelects();
+      root.classList.add('open');
+      const r = trigger.getBoundingClientRect();
+      menu.style.top = (r.bottom + 4) + 'px';
+      menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    }
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      if (root.classList.contains('open')) close(); else open();
+    });
+    options.forEach(o => o.addEventListener('click', e => {
+      e.stopPropagation();
+      onChange(o.dataset.value);
+      sync();
+      close();
+    }));
+    sync();
+    return { sync, close };
+  }
+
   function isTypingTarget(target) {
     if (!target) return false;
     const tag = target.tagName?.toLowerCase();
@@ -228,46 +268,41 @@ export function createControlsController({
         syncLayerMenu();
       });
     });
-    // Mobile dropdowns (hidden on desktop; bound always, only visible on narrow screens).
-    const speedSelect = document.getElementById('speed-select');
-    if (speedSelect) {
-      speedSelect.value = state.speedMode;
-      speedSelect.addEventListener('change', () => {
-        state.speedMode = speedSelect.value;
+    // Mobile custom dropdowns (inline, no native picker popup). Hidden on desktop.
+    document.addEventListener('click', closeAllMSelects);
+    document.getElementById('top-bar')?.addEventListener('scroll', closeAllMSelects, { passive: true });
+    mselects.push(setupMSelect(document.getElementById('speed-mselect'), {
+      getValue: () => state.speedMode,
+      onChange: v => {
+        state.speedMode = v;
         soundApi.timeSpeed(state.speedMode);
         const sc = document.getElementById('scrubber');
         if (sc) sc.step = String(SPEED_MODES[state.speedMode].value);
-        document.querySelectorAll('#speed-seg button').forEach(x => {
-          x.classList.toggle('active', x.dataset.speed === state.speedMode);
-        });
-      });
-    }
-    const scaleSelect = document.getElementById('scale-select');
-    if (scaleSelect) {
-      scaleSelect.value = state.scaleMode;
-      scaleSelect.addEventListener('change', () => {
-        if (state.scaleMode === scaleSelect.value) return;
-        state.scaleMode = scaleSelect.value;
+        document.querySelectorAll('#speed-seg button').forEach(x => x.classList.toggle('active', x.dataset.speed === state.speedMode));
+      },
+    }));
+    mselects.push(setupMSelect(document.getElementById('scale-mselect'), {
+      getValue: () => state.scaleMode,
+      onChange: v => {
+        if (state.scaleMode === v) return;
+        state.scaleMode = v;
         soundApi.scaleMorph();
         applyScaleMode();
         rebuildOrbits();
         resetCamera();
-        document.querySelectorAll('#scale-seg button').forEach(x => {
-          x.classList.toggle('active', x.dataset.scale === state.scaleMode);
-        });
-      });
-    }
-    const qualitySelect = document.getElementById('quality-select');
-    if (qualitySelect) {
-      qualitySelect.value = state.renderQuality;
-      qualitySelect.addEventListener('change', () => {
-        const mode = qualitySelect.value;
-        if (!mode || state.renderQuality === mode) return;
-        setRenderQuality(mode);
+        document.querySelectorAll('#scale-seg button').forEach(x => x.classList.toggle('active', x.dataset.scale === state.scaleMode));
+      },
+    }));
+    qualityMSelect = setupMSelect(document.getElementById('quality-mselect'), {
+      getValue: () => state.renderQuality,
+      onChange: v => {
+        if (!v || state.renderQuality === v) return;
+        setRenderQuality(v);
         syncQualityControls();
         syncLayerMenu();
-      });
-    }
+      },
+    });
+    mselects.push(qualityMSelect);
     document.getElementById('play-btn').addEventListener('click', e => {
       state.playing = !state.playing;
       e.target.textContent = state.playing ? '⏸' : '▶';

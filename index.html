@@ -21,12 +21,15 @@
       <button data-speed="month">月</button>
       <button data-speed="year">年</button>
     </div>
-    <select class="seg-select" id="speed-select" aria-label="时间速率">
-      <option value="hour">时</option>
-      <option value="day">日</option>
-      <option value="month">月</option>
-      <option value="year">年</option>
-    </select>
+    <div class="mselect" id="speed-mselect">
+      <button class="mselect-trigger" type="button" aria-label="时间速率"><span class="mselect-label">日</span><span class="caret">▾</span></button>
+      <div class="mselect-menu">
+        <button class="mselect-option" data-value="hour" type="button">时</button>
+        <button class="mselect-option" data-value="day" type="button">日</button>
+        <button class="mselect-option" data-value="month" type="button">月</button>
+        <button class="mselect-option" data-value="year" type="button">年</button>
+      </div>
+    </div>
   </div>
   <div class="divider"></div>
   <div class="group">
@@ -36,11 +39,14 @@
       <button data-scale="real">真实</button>
       <button data-scale="true">真比例</button>
     </div>
-    <select class="seg-select" id="scale-select" aria-label="尺度">
-      <option value="schematic">示意</option>
-      <option value="real">真实</option>
-      <option value="true">真比例</option>
-    </select>
+    <div class="mselect" id="scale-mselect">
+      <button class="mselect-trigger" type="button" aria-label="尺度"><span class="mselect-label">示意</span><span class="caret">▾</span></button>
+      <div class="mselect-menu">
+        <button class="mselect-option" data-value="schematic" type="button">示意</button>
+        <button class="mselect-option" data-value="real" type="button">真实</button>
+        <button class="mselect-option" data-value="true" type="button">真比例</button>
+      </div>
+    </div>
   </div>
   <div class="divider"></div>
   <div class="group">
@@ -49,10 +55,13 @@
       <button data-quality="quality" class="active">高清</button>
       <button data-quality="performance">性能</button>
     </div>
-    <select class="seg-select" id="quality-select" aria-label="画质">
-      <option value="quality">高清</option>
-      <option value="performance">性能</option>
-    </select>
+    <div class="mselect" id="quality-mselect">
+      <button class="mselect-trigger" type="button" aria-label="画质"><span class="mselect-label">高清</span><span class="caret">▾</span></button>
+      <div class="mselect-menu">
+        <button class="mselect-option" data-value="quality" type="button">高清</button>
+        <button class="mselect-option" data-value="performance" type="button">性能</button>
+      </div>
+    </div>
   </div>
   <div class="divider"></div>
   <div class="group">
@@ -161,7 +170,7 @@
     <h3>操作帮助</h3>
     <button class="info-close" id="help-close" title="关闭帮助">×</button>
   </div>
-  <div class="help-shortcuts">
+  <div class="help-shortcuts help-desktop">
     <div><span class="kbd">拖拽</span><span>旋转视角</span></div>
     <div><span class="kbd">滚轮</span><span>缩放到光标</span></div>
     <div><span class="kbd">点击行星</span><span>聚焦并独显</span></div>
@@ -173,6 +182,17 @@
     <div><span class="kbd">点击天体</span><span>行星独显 / 彗星·矮行星·太阳信息卡</span></div>
     <div><span class="kbd">R</span><span>重置视角</span></div>
     <div><span class="kbd">图层▸声音</span><span>开启音效；可在「基底主题」切换深空 / 星云 / 轨道 / 太阳风，或加载自定义音频文件</span></div>
+  </div>
+  <div class="help-shortcuts help-mobile">
+    <div><span class="kbd">单指拖动</span><span>旋转视角</span></div>
+    <div><span class="kbd">双指捏合</span><span>缩放（缩放到捏合点）</span></div>
+    <div><span class="kbd">双指拖动</span><span>平移视角</span></div>
+    <div><span class="kbd">点击行星</span><span>独显该行星；再次点击同一颗退出独显</span></div>
+    <div><span class="kbd">顶栏下拉</span><span>切换时间速率 / 尺度 / 画质</span></div>
+    <div><span class="kbd">暂停键</span><span>播放 / 暂停</span></div>
+    <div><span class="kbd">图层按钮</span><span>打开图层菜单（左上 ◀ 收起）</span></div>
+    <div><span class="kbd">信息卡 ▾</span><span>展开 / 收起详情</span></div>
+    <div><span class="kbd">图层▸声音</span><span>开启音效；可切换基底主题或加载自定义音频</span></div>
   </div>
   <div class="help-note">
     <strong>科学精度说明</strong>

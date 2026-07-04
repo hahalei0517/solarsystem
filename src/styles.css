@@ -339,9 +339,32 @@
   }
   .card-collapse:hover { color: #fff; background: rgba(255,255,255,0.10); }
 
-  /* Mobile-only dropdowns + layers close header — hidden on desktop. */
-  .seg-select { display: none; }
+  /* Mobile-only custom dropdowns + layers close header — hidden on desktop.
+     Native <select> pops an OS picker modal on mobile; this custom component opens inline. */
+  .mselect { display: none; position: relative; }
+  .mselect-trigger {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.05); color: #c9d1d9;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 9px;
+    padding: 7px 8px; font-size: 12px; min-height: 32px; cursor: pointer;
+  }
+  .mselect-trigger .caret { font-size: 10px; opacity: .7; }
+  .mselect-menu {
+    display: none; position: fixed; z-index: 50; flex-direction: column;
+    background: rgba(13,17,23,0.96); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    padding: 4px; min-width: 92px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+  .mselect.open .mselect-menu { display: flex; }
+  .mselect-option {
+    background: transparent; color: #c9d1d9; border: 0; cursor: pointer;
+    padding: 9px 10px; border-radius: 7px; font-size: 12.5px; text-align: left; min-height: 36px;
+  }
+  .mselect-option:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .mselect-option.active { background: rgba(47,129,247,0.25); color: #fff; }
   .layers-head { display: none; }
+  .help-mobile { display: none; }
 
   @media (max-width: 720px) {
     /* Top bar: single horizontally-scrollable row; hide segment labels + dividers to save width. */
@@ -359,20 +382,18 @@
     #top-bar .group { display: contents; }
     #top-bar #speed-seg, #top-bar #scale-seg, #top-bar #quality-seg { display: none; }
     #top-bar #solo-status, #top-bar #solo-btn { display: none; }
-    .seg-select {
-      display: block;
-      background: rgba(255,255,255,0.05); color: #c9d1d9;
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 9px;
-      padding: 7px 8px; font-size: 12px; min-height: 32px; cursor: pointer;
-    }
+    .mselect { display: inline-flex; }
     /* Row order: play, speed, scale, quality, reset, layers, help. */
     #play-btn { order: 1; }
-    #speed-select { order: 2; }
-    #scale-select { order: 3; }
-    #quality-select { order: 4; }
+    #speed-mselect { order: 2; }
+    #scale-mselect { order: 3; }
+    #quality-mselect { order: 4; }
     #reset-btn { order: 5; }
     #layers-btn { order: 6; }
     #help-btn { order: 7; }
+    /* Mobile help shows touch gestures; desktop keyboard shortcuts hidden on narrow screens. */
+    .help-desktop { display: none; }
+    .help-mobile { display: grid; }
 
     /* Layers menu: compact overlay drawer, cleared below the top bar. */
     #layers-menu {
