@@ -174,6 +174,21 @@ export function createControlsController({
     document.getElementById('layers-menu')?.classList.toggle('hidden');
   }
 
+  // Mobile-only: when a card transitions from hidden→shown on a narrow screen, start it
+  // collapsed (header peek) so the central 3D area stays visible. No-op on desktop.
+  function watchCardPeek(cardId) {
+    const card = document.getElementById(cardId);
+    if (!card || typeof MutationObserver === 'undefined') return;
+    let wasHidden = card.classList.contains('hidden');
+    new MutationObserver(() => {
+      const isHidden = card.classList.contains('hidden');
+      if (wasHidden && !isHidden && window.matchMedia?.('(max-width: 720px)').matches) {
+        card.classList.add('collapsed');
+      }
+      wasHidden = isHidden;
+    }).observe(card, { attributes: true, attributeFilter: ['class'] });
+  }
+
   function isTypingTarget(target) {
     if (!target) return false;
     const tag = target.tagName?.toLowerCase();
@@ -277,6 +292,18 @@ export function createControlsController({
       else closeInfoPanel();
     });
     document.getElementById('event-exit')?.addEventListener('click', exitEventView);
+
+    // Mobile card collapse: chevron toggles a header-only peek; cards open collapsed so the
+    // 3D scene stays visible. The chevron buttons are display:none on desktop (see styles.css),
+    // so these handlers never fire there — desktop behaviour is unchanged.
+    document.getElementById('info-collapse')?.addEventListener('click', () => {
+      document.getElementById('info')?.classList.toggle('collapsed');
+    });
+    document.getElementById('ec-collapse')?.addEventListener('click', () => {
+      document.getElementById('event-card')?.classList.toggle('collapsed');
+    });
+    watchCardPeek('info');
+    watchCardPeek('event-card');
 
     window.addEventListener('keydown', e => {
       if (isTypingTarget(e.target)) return;

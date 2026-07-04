@@ -180,6 +180,102 @@ controls.enableZoom = false;  // we handle wheel ourselves (zoom-to-cursor below
   }, { passive: false });
 })();
 
+// ----- Pinch-to-zoom (touch only) -----
+// Two-finger pinch zooms toward the pinch midpoint, mirroring the wheel zoom-to-cursor
+// dolly math above. Independent of OrbitControls, which (with enableZoom=false) handles
+// one-finger rotate + two-finger pan; pinch adds zoom on top — the three are orthogonal,
+// composing like the native DOLLY_PAN gesture.
+//
+// Desktop guarantee: the IIFE bails out (attaches no listeners) on devices without touch,
+// and each handler ignores non-touch pointers. Mouse/wheel behaviour is byte-identical to
+// before; the wheel handler above is not touched.
+(function installPinchZoom() {
+  const hasTouch = window.matchMedia?.('(pointer: coarse)').matches || ('ontouchstart' in window);
+  if (!hasTouch) return;
+
+  const _mid = new THREE.Vector2();
+  const _ray = new THREE.Raycaster();
+  const _plane = new THREE.Plane();
+  const _planeN = new THREE.Vector3();
+  const _anchor = new THREE.Vector3();
+  const _offset = new THREE.Vector3();
+  const _tmp = new THREE.Vector3();
+
+  function currentSunRadius() {
+    return state.scaleMode === 'true' ? trueRadiusFromDiameterKm(SUN.realDiameterKm) : SUN.radius;
+  }
+
+  // Same dolly math as the wheel handler: anchor the world point under the screen point,
+  // change the camera–target distance, then shift camera+target together to keep the anchor
+  // fixed. `pinchScale` = current finger distance / last finger distance (>1 spread → zoom in).
+  function dollyAt(ndcX, ndcY, pinchScale) {
+    _mid.set(ndcX, ndcY);
+    _planeN.subVectors(camera.position, controls.target).normalize();
+    _plane.setFromNormalAndCoplanarPoint(_planeN, controls.target);
+    _ray.setFromCamera(_mid, camera);
+    const hasAnchor = _ray.ray.intersectPlane(_plane, _anchor);
+
+    const camDist = camera.position.distanceTo(controls.target);
+    const sunR = currentSunRadius();
+    const proximity = sunR / (camDist + sunR);
+    const ratio = 0.10 - 0.07 * proximity;
+    let newDist = camDist / pinchScale;
+    // Clamp the per-frame change to the same ±ratio band as wheel zoom so one pinch frame
+    // can't jump further than one wheel tick.
+    newDist = Math.max(camDist * (1 - ratio), Math.min(camDist * (1 + ratio), newDist));
+    newDist = Math.max(controls.minDistance, Math.min(controls.maxDistance, newDist));
+    if (Math.abs(newDist - camDist) < 1e-9) return;
+
+    _offset.copy(camera.position).sub(controls.target).multiplyScalar(newDist / camDist);
+    camera.position.copy(controls.target).add(_offset);
+
+    if (hasAnchor) {
+      camera.lookAt(controls.target);
+      camera.updateMatrixWorld();
+      _tmp.copy(_anchor).project(camera);
+      _offset.set(_mid.x, _mid.y, _tmp.z).unproject(camera);
+      _offset.subVectors(_anchor, _offset);
+      camera.position.add(_offset);
+      controls.target.add(_offset);
+    }
+  }
+
+  const pointers = new Map(); // pointerId -> {x,y}
+  let lastDist = 0;
+
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch') return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      lastDist = Math.hypot(a.x - b.x, a.y - b.y);
+    }
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'touch') return;
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size !== 2) return;
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (lastDist > 0 && dist > 0 && Math.abs(dist - lastDist) > 0.5) {
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const ndcX = (mx / window.innerWidth) * 2 - 1;
+      const ndcY = -(my / window.innerHeight) * 2 + 1;
+      dollyAt(ndcX, ndcY, dist / lastDist);
+    }
+    lastDist = dist;
+  });
+  function endPointer(e) {
+    if (e.pointerType !== 'touch') return;
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) lastDist = 0;
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+})();
+
 // ---------- Post-processing (Bloom) ----------
 const composer = new THREE.EffectComposer(renderer);
 composer.setPixelRatio(renderPixelRatio());

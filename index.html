@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>太阳系互动模型 · 3D · Solar System</title>
 <link rel="icon" href="/favicon.svg" />
 <link rel="stylesheet" href="/src/styles.css" />
@@ -103,6 +103,7 @@
   <div class="title">
     <span class="swatch" id="info-swatch"></span>
     <h2 id="info-name">—</h2>
+    <button class="card-collapse" id="info-collapse" title="折叠/展开" aria-label="折叠或展开">▾</button>
     <button class="info-close" id="info-close" title="关闭信息卡">×</button>
   </div>
   <p class="desc" id="info-desc"></p>
@@ -129,6 +130,7 @@
   <div class="ec-head">
     <span class="swatch" id="ec-swatch" style="display:none;"></span>
     <h2 id="ec-name">重要天象</h2>
+    <button class="card-collapse" id="ec-collapse" title="折叠/展开" aria-label="折叠或展开">▾</button>
     <button class="info-close" id="ec-close" title="关闭">×</button>
   </div>
   <p class="desc" id="ec-desc"></p>
