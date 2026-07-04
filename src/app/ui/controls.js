@@ -206,20 +206,25 @@ export function createControlsController({
     function sync() {
       const v = getValue();
       options.forEach(o => o.classList.toggle('active', o.dataset.value === v));
-      const cur = root.querySelector('.mselect-option[data-value="' + v + '"]');
+      const cur = menu.querySelector('.mselect-option[data-value="' + v + '"]');
       if (label && cur) label.textContent = cur.textContent;
     }
-    function close() { root.classList.remove('open'); }
+    function close() { menu.classList.remove('open'); }
     function open() {
       closeAllMSelects();
-      root.classList.add('open');
+      // Portal the menu to <body> so position:fixed resolves against the viewport. #top-bar
+      // carries transform + backdrop-filter (from .panel), which makes it the containing block
+      // for fixed descendants — that both mispositions the menu and lets top-bar's overflow-x
+      // clip it. body has neither, so a fixed child positions/escapes correctly.
+      if (menu.parentNode !== document.body) document.body.appendChild(menu);
+      menu.classList.add('open');
       const r = trigger.getBoundingClientRect();
-      menu.style.top = (r.bottom + 4) + 'px';
+      menu.style.top = (r.bottom + 6) + 'px';
       menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
     }
     trigger.addEventListener('click', e => {
       e.stopPropagation();
-      if (root.classList.contains('open')) close(); else open();
+      if (menu.classList.contains('open')) close(); else open();
     });
     options.forEach(o => o.addEventListener('click', e => {
       e.stopPropagation();

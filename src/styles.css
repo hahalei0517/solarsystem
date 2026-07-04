@@ -356,7 +356,7 @@
     padding: 4px; min-width: 92px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6);
   }
-  .mselect.open .mselect-menu { display: flex; }
+  .mselect-menu.open { display: flex; }
   .mselect-option {
     background: transparent; color: #c9d1d9; border: 0; cursor: pointer;
     padding: 9px 10px; border-radius: 7px; font-size: 12.5px; text-align: left; min-height: 36px;
