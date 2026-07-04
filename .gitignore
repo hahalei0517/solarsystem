@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+server.log
+playwright-report/
+test-results/
+
+# 本地工具配置（不进仓库）
+.claude/
+
+# 大体积源音频备份（已压缩为 public/audio/space-ambient-1.mp3）
+太空音效1.wav
+*.wav

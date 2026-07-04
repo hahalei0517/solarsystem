@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>太阳系互动模型 · 3D · Solar System</title>
+<link rel="icon" href="/favicon.svg" />
+<link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+<div id="loader"><span>初始化 3D 引擎<span class="dot">...</span></span></div>
+<canvas id="stage"></canvas>
+<div id="planet-labels"></div>
+
+<div id="top-bar" class="panel">
+  <div class="group">
+    <span class="label">速度</span>
+    <div class="seg" id="speed-seg">
+      <button data-speed="hour">时</button>
+      <button data-speed="day" class="active">日</button>
+      <button data-speed="month">月</button>
+      <button data-speed="year">年</button>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="group">
+    <span class="label">尺度</span>
+    <div class="seg" id="scale-seg">
+      <button data-scale="schematic" class="active">示意</button>
+      <button data-scale="real">真实</button>
+      <button data-scale="true">真比例</button>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="group">
+    <span class="label">画质</span>
+    <div class="seg" id="quality-seg">
+      <button data-quality="quality" class="active">高清</button>
+      <button data-quality="performance">性能</button>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="group">
+    <button class="icon-btn" id="play-btn">⏸</button>
+    <button class="icon-btn" id="reset-btn">↺ 视角</button>
+  </div>
+  <div class="divider"></div>
+  <div class="group toolbar-actions">
+    <button class="icon-btn on" id="layers-btn">图层</button>
+    <button class="icon-btn" id="help-btn">?</button>
+    <button class="solo-chip" id="solo-status">全景</button>
+    <button class="icon-btn" id="solo-btn">退出独显</button>
+  </div>
+</div>
+
+<div id="layers-menu" class="panel hidden">
+  <label class="layer-row"><span>轨道</span><input id="layer-orbits" type="checkbox" checked /></label>
+  <label class="layer-row"><span>黄道面</span><input id="layer-ecliptic" type="checkbox" /></label>
+  <label class="layer-row"><span>标签</span><input id="layer-labels" type="checkbox" checked /></label>
+  <label class="layer-row"><span>轨迹</span><input id="layer-trails" type="checkbox" checked /></label>
+  <label class="layer-row"><span>小行星</span><input id="layer-belts" type="checkbox" checked /></label>
+  <label class="layer-row"><span>彗星</span><input id="layer-comets" type="checkbox" /></label>
+  <label class="layer-row"><span>矮行星</span><input id="layer-dwarfs" type="checkbox" /></label>
+  <label class="layer-row"><span>天象事件</span><input id="layer-events" type="checkbox" /></label>
+  <label class="layer-row"><span>随光标旋转</span><input id="layer-rotate-cursor" type="checkbox" /></label>
+  <label class="layer-row"><span>地轴</span><input id="layer-axis" type="checkbox" checked /></label>
+  <label class="layer-row"><span>辉光</span><input id="layer-bloom" type="checkbox" checked /></label>
+  <label class="layer-row"><span>声音</span><input id="layer-sound" type="checkbox" /></label>
+  <label class="layer-row"><span>基底主题</span>
+    <select id="audio-theme">
+      <option value="space1">太空音效1</option>
+      <option value="deep">深空</option>
+      <option value="nebula">星云</option>
+      <option value="orbit">轨道</option>
+      <option value="solar">太阳风</option>
+      <option value="custom">自定义文件…</option>
+    </select>
+  </label>
+  <input type="file" id="audio-file" accept="audio/*" style="display:none" />
+</div>
+
+<div class="legacy-layer-buttons" style="display:none;">
+  <button class="icon-btn on" id="orbits-btn">轨道</button>
+  <button class="icon-btn" id="ecliptic-btn">黄道面</button>
+  <button class="icon-btn on" id="labels-btn">标签</button>
+  <button class="icon-btn on" id="trail-btn">轨迹</button>
+  <button class="icon-btn on" id="belts-btn">小行星</button>
+  <button class="icon-btn" id="comets-btn">彗星</button>
+  <button class="icon-btn" id="dwarfs-btn">矮行星</button>
+  <button class="icon-btn on" id="bloom-btn">辉光</button>
+  <button class="icon-btn" id="sound-btn">🔇</button>
+</div>
+
+<div id="planet-list" class="panel">
+  <div class="list-header">
+    <h3>行星</h3>
+    <button id="toggle-list" class="icon-btn" title="收起/展开">◀</button>
+  </div>
+  <div id="planet-rows"></div>
+</div>
+
+<div id="info" class="panel hidden">
+  <div class="title">
+    <span class="swatch" id="info-swatch"></span>
+    <h2 id="info-name">—</h2>
+    <button class="info-close" id="info-close" title="关闭信息卡">×</button>
+  </div>
+  <p class="desc" id="info-desc"></p>
+  <div class="info-fact" id="info-fact" style="display:none;"></div>
+  <dl id="info-stats"></dl>
+  <div id="info-compare" class="info-compare"></div>
+  <button id="event-exit" title="退出事件视图">退出事件视图</button>
+  <div class="moons" id="info-moons-wrap" style="display:none;">
+    <h4>主要卫星</h4>
+    <div id="info-moons"></div>
+    <div id="moon-detail" style="display:none;"></div>
+  </div>
+</div>
+
+<div id="timeline" class="panel">
+  <div class="date" id="sim-date">2000-01-01</div>
+  <div id="ephemeris-warning" class="hidden" role="status" aria-live="polite"></div>
+  <input type="range" class="scrubber" id="scrubber" min="-18250" max="36500" value="0" step="1" />
+  <button class="icon-btn" id="today-btn" style="padding:4px 9px;font-size:11.5px;">今天</button>
+  <div class="stat">速度 <b id="speed-info">1 天/秒</b></div>
+</div>
+
+<div id="event-card" class="panel hidden">
+  <div class="ec-head">
+    <span class="swatch" id="ec-swatch" style="display:none;"></span>
+    <h2 id="ec-name">重要天象</h2>
+    <button class="info-close" id="ec-close" title="关闭">×</button>
+  </div>
+  <p class="desc" id="ec-desc"></p>
+  <dl id="ec-stats"></dl>
+</div>
+
+<div id="help-panel" class="panel hidden">
+  <div class="help-title">
+    <h3>操作帮助</h3>
+    <button class="info-close" id="help-close" title="关闭帮助">×</button>
+  </div>
+  <div class="help-shortcuts">
+    <div><span class="kbd">拖拽</span><span>旋转视角</span></div>
+    <div><span class="kbd">滚轮</span><span>缩放到光标</span></div>
+    <div><span class="kbd">点击行星</span><span>聚焦并独显</span></div>
+    <div><span class="kbd">1-8</span><span>快速聚焦八大行星</span></div>
+    <div><span class="kbd">Space</span><span>播放 / 暂停</span></div>
+    <div><span class="kbd">Esc / 0</span><span>退出独显</span></div>
+    <div><span class="kbd">O L B C E T</span><span>轨道 / 标签 / 小行星 / 彗星 / 黄道面 / 轨迹</span></div>
+    <div><span class="kbd">V</span><span>随光标旋转（左键拖拽以所指天体为中心）</span></div>
+    <div><span class="kbd">点击天体</span><span>行星独显 / 彗星·矮行星·太阳信息卡</span></div>
+    <div><span class="kbd">R</span><span>重置视角</span></div>
+    <div><span class="kbd">图层▸声音</span><span>开启音效；可在「基底主题」切换深空 / 星云 / 轨道 / 太阳风，或加载自定义音频文件</span></div>
+  </div>
+  <div class="help-note">
+    <strong>科学精度说明</strong>
+    <p>本项目用于教育可视化，不是精密天文软件。示意模式会夸张距离和大小；真实模式使用近似日心轨道元素，推荐在 1800–2050 年附近查看。卫星、彗星、小行星带和辉光均为视觉简化。真比例模式以 1 地球直径为单位，行星、太阳、卫星按真实尺寸、轨道按真实 AU 显示；由于尺度悬殊，外行星视野下行星几乎不可见，切换时镜头会自动拉远，用于直观感受太空之空旷。</p>
+  </div>
+</div>
+
+<div id="scale-bar" class="panel">
+  <span class="scale-line"></span>
+  <span class="scale-label" id="scale-label">1 AU</span>
+</div>
+
+<div id="tip"></div>
+
+<!-- Three.js (local UMD, file:// friendly) -->
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/OrbitControls.js"></script>
+<!-- Post-processing for Bloom — EffectComposer defines THREE.Pass and must load first -->
+<script src="/vendor/CopyShader.js"></script>
+<script src="/vendor/LuminosityHighPassShader.js"></script>
+<script src="/vendor/EffectComposer.js"></script>
+<script src="/vendor/RenderPass.js"></script>
+<script src="/vendor/ShaderPass.js"></script>
+<script src="/vendor/MaskPass.js"></script>
+<script src="/vendor/UnrealBloomPass.js"></script>
+<script>
+// Catch any error that would otherwise leave the loader spinning forever.
+window.addEventListener('error', e => {
+  const l = document.getElementById('loader');
+  if (l) {
+    l.innerHTML = '<div style="text-align:center;color:#f88;line-height:1.7;padding:20px;font-size:12px;">'
+      + '初始化失败<br><span style="color:#aaa">' + (e.message || e) + '</span><br>'
+      + '<span style="color:#888">' + (e.filename || '') + ':' + (e.lineno || '') + '</span></div>';
+  }
+});
+// Sanity check
+if (typeof THREE === 'undefined') {
+  document.getElementById('loader').innerHTML =
+    '<div style="color:#f88">three.min.js 加载失败，检查文件是否与 index.html 同目录</div>';
+}
+if (typeof THREE !== 'undefined' && !THREE.OrbitControls) {
+  document.getElementById('loader').innerHTML =
+    '<div style="color:#f88">OrbitControls.js 加载失败</div>';
+}
+</script>
+
+<script type="module" src="/src/app/main.js"></script>
+</body>
+</html>
