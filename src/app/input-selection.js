@@ -188,7 +188,16 @@ export function installSelectionHandlers({
     // Clicking a planet/moon clears any comet focus.
     state.cometFocusIndex = -1;
     const idx = planetObjs.findIndex(po => po.mesh === obj);
-    if (idx >= 0) setSoloPlanet(idx);
+    if (idx >= 0) {
+      // Mobile: tap the already-soloed planet again to exit solo (the top-bar solo buttons are
+      // hidden on mobile, so tapping the same planet is the way out). Desktop keeps the buttons
+      // and the original non-toggle click.
+      if (window.matchMedia?.('(max-width: 720px)').matches && state.soloIndex === idx) {
+        clearSoloMode();
+      } else {
+        setSoloPlanet(idx);
+      }
+    }
   });
 
   canvas.addEventListener('pointermove', e => {

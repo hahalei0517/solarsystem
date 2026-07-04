@@ -101,6 +101,8 @@ export function createControlsController({
     document.querySelectorAll('#quality-seg button').forEach(button => {
       button.classList.toggle('active', button.dataset.quality === state.renderQuality);
     });
+    const qualitySelect = document.getElementById('quality-select');
+    if (qualitySelect) qualitySelect.value = state.renderQuality;
   }
 
   function updateSoloStatus() {
@@ -226,6 +228,46 @@ export function createControlsController({
         syncLayerMenu();
       });
     });
+    // Mobile dropdowns (hidden on desktop; bound always, only visible on narrow screens).
+    const speedSelect = document.getElementById('speed-select');
+    if (speedSelect) {
+      speedSelect.value = state.speedMode;
+      speedSelect.addEventListener('change', () => {
+        state.speedMode = speedSelect.value;
+        soundApi.timeSpeed(state.speedMode);
+        const sc = document.getElementById('scrubber');
+        if (sc) sc.step = String(SPEED_MODES[state.speedMode].value);
+        document.querySelectorAll('#speed-seg button').forEach(x => {
+          x.classList.toggle('active', x.dataset.speed === state.speedMode);
+        });
+      });
+    }
+    const scaleSelect = document.getElementById('scale-select');
+    if (scaleSelect) {
+      scaleSelect.value = state.scaleMode;
+      scaleSelect.addEventListener('change', () => {
+        if (state.scaleMode === scaleSelect.value) return;
+        state.scaleMode = scaleSelect.value;
+        soundApi.scaleMorph();
+        applyScaleMode();
+        rebuildOrbits();
+        resetCamera();
+        document.querySelectorAll('#scale-seg button').forEach(x => {
+          x.classList.toggle('active', x.dataset.scale === state.scaleMode);
+        });
+      });
+    }
+    const qualitySelect = document.getElementById('quality-select');
+    if (qualitySelect) {
+      qualitySelect.value = state.renderQuality;
+      qualitySelect.addEventListener('change', () => {
+        const mode = qualitySelect.value;
+        if (!mode || state.renderQuality === mode) return;
+        setRenderQuality(mode);
+        syncQualityControls();
+        syncLayerMenu();
+      });
+    }
     document.getElementById('play-btn').addEventListener('click', e => {
       state.playing = !state.playing;
       e.target.textContent = state.playing ? '⏸' : '▶';
@@ -285,6 +327,9 @@ export function createControlsController({
       state.cometFocusIndex = -1;
     });
     document.getElementById('layers-btn')?.addEventListener('click', toggleLayersMenu);
+    document.getElementById('layers-close')?.addEventListener('click', () => {
+      document.getElementById('layers-menu')?.classList.add('hidden');
+    });
     document.getElementById('help-btn')?.addEventListener('click', toggleHelpPanel);
     document.getElementById('help-close')?.addEventListener('click', closeHelpPanel);
     document.getElementById('info-close')?.addEventListener('click', () => {

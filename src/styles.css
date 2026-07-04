@@ -339,6 +339,10 @@
   }
   .card-collapse:hover { color: #fff; background: rgba(255,255,255,0.10); }
 
+  /* Mobile-only dropdowns + layers close header — hidden on desktop. */
+  .seg-select { display: none; }
+  .layers-head { display: none; }
+
   @media (max-width: 720px) {
     /* Top bar: single horizontally-scrollable row; hide segment labels + dividers to save width. */
     #top-bar {
@@ -351,14 +355,40 @@
     #top-bar .label, #top-bar .divider { display: none; }
     .seg button, .icon-btn { padding: 7px 10px; font-size: 12px; min-height: 32px; }
     .solo-chip { padding: 6px 9px; font-size: 11px; }
+    /* Flatten groups into one row; hide segment buttons + solo controls (mobile uses dropdowns). */
+    #top-bar .group { display: contents; }
+    #top-bar #speed-seg, #top-bar #scale-seg, #top-bar #quality-seg { display: none; }
+    #top-bar #solo-status, #top-bar #solo-btn { display: none; }
+    .seg-select {
+      display: block;
+      background: rgba(255,255,255,0.05); color: #c9d1d9;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 9px;
+      padding: 7px 8px; font-size: 12px; min-height: 32px; cursor: pointer;
+    }
+    /* Row order: play, speed, scale, quality, reset, layers, help. */
+    #play-btn { order: 1; }
+    #speed-select { order: 2; }
+    #scale-select { order: 3; }
+    #quality-select { order: 4; }
+    #reset-btn { order: 5; }
+    #layers-btn { order: 6; }
+    #help-btn { order: 7; }
 
-    /* Layers menu: compact overlay drawer (doesn't take persistent scene space). */
+    /* Layers menu: compact overlay drawer, cleared below the top bar. */
     #layers-menu {
-      top: calc(58px + env(safe-area-inset-top)); left: 8px;
+      top: calc(72px + env(safe-area-inset-top)); left: 8px;
       max-width: calc(100vw - 16px);
-      max-height: calc(100vh - 170px); max-height: calc(100dvh - 170px);
+      max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);
       overflow-y: auto;
     }
+    .layers-head { display: flex; align-items: center; gap: 8px; margin: 0 2px 8px; }
+    .layers-close {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      color: #c9d1d9; cursor: pointer; padding: 3px 8px;
+      border-radius: 7px; font-size: 12px; line-height: 1;
+    }
+    .layers-close:hover { color: #fff; background: rgba(255,255,255,0.10); }
+    .layers-title { font-size: 10.5px; color: #8b949e; letter-spacing: 1.2px; text-transform: uppercase; }
 
     /* Planet info card: bottom sheet, collapsible to a header peek. */
     #info {

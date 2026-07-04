@@ -21,6 +21,12 @@
       <button data-speed="month">月</button>
       <button data-speed="year">年</button>
     </div>
+    <select class="seg-select" id="speed-select" aria-label="时间速率">
+      <option value="hour">时</option>
+      <option value="day">日</option>
+      <option value="month">月</option>
+      <option value="year">年</option>
+    </select>
   </div>
   <div class="divider"></div>
   <div class="group">
@@ -30,6 +36,11 @@
       <button data-scale="real">真实</button>
       <button data-scale="true">真比例</button>
     </div>
+    <select class="seg-select" id="scale-select" aria-label="尺度">
+      <option value="schematic">示意</option>
+      <option value="real">真实</option>
+      <option value="true">真比例</option>
+    </select>
   </div>
   <div class="divider"></div>
   <div class="group">
@@ -38,6 +49,10 @@
       <button data-quality="quality" class="active">高清</button>
       <button data-quality="performance">性能</button>
     </div>
+    <select class="seg-select" id="quality-select" aria-label="画质">
+      <option value="quality">高清</option>
+      <option value="performance">性能</option>
+    </select>
   </div>
   <div class="divider"></div>
   <div class="group">
@@ -54,6 +69,10 @@
 </div>
 
 <div id="layers-menu" class="panel hidden">
+  <div class="layers-head">
+    <button class="layers-close" id="layers-close" title="收起" aria-label="收起图层菜单">◀</button>
+    <span class="layers-title">图层</span>
+  </div>
   <label class="layer-row"><span>轨道</span><input id="layer-orbits" type="checkbox" checked /></label>
   <label class="layer-row"><span>黄道面</span><input id="layer-ecliptic" type="checkbox" /></label>
   <label class="layer-row"><span>标签</span><input id="layer-labels" type="checkbox" checked /></label>
