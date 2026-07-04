@@ -173,7 +173,18 @@ export function createControlsController({
   }
 
   function toggleLayersMenu() {
-    document.getElementById('layers-menu')?.classList.toggle('hidden');
+    const menu = document.getElementById('layers-menu');
+    if (!menu) return;
+    // Mobile: anchor the drawer just below the top bar's actual bottom edge so it never overlaps
+    // the top-bar frame (top-bar height varies with safe-area inset + content). Desktop keeps its
+    // CSS top:76px — clear the inline style so the media-query value applies.
+    if (window.matchMedia?.('(max-width: 720px)').matches) {
+      const tb = document.getElementById('top-bar');
+      if (tb) menu.style.top = (tb.getBoundingClientRect().bottom + 8) + 'px';
+    } else {
+      menu.style.top = '';
+    }
+    menu.classList.toggle('hidden');
   }
 
   // Mobile-only: when a card transitions from hidden→shown on a narrow screen, start it

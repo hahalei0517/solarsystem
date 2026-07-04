@@ -799,9 +799,13 @@ function cometScenePosFromOrbitalXY(c, xo, yo) {
   if (state.scaleMode === 'real') {
     return new THREE.Vector3(x, z, -y); // AU = scene units
   }
-  const baseScale = PLANETS[7].orbit / PLANETS[7].realAU;
-  const minScale = (SUN.radius * 2.35) / c.q;
-  const scale = Math.max(baseScale, minScale);
+  const a = c.q / (1 - c.e);  // semi-major axis (AU)
+  // Dwarfs with a hand-tuned schematic `orbit` (e.g. Ceres → asteroid belt) anchor their
+  // semi-major axis at that scene-unit distance, preserving eccentricity shape. Other
+  // comets/dwarfs share Neptune's AU→scene ratio so the outer system stays to scale.
+  const scale = c.orbit != null
+    ? c.orbit / a
+    : Math.max(PLANETS[7].orbit / PLANETS[7].realAU, (SUN.radius * 2.35) / c.q);
   return new THREE.Vector3(x, z, -y).multiplyScalar(scale);
 }
 
@@ -871,6 +875,9 @@ function makeComaTexture() {
 
 function buildComet(c, idx) {
   const group = new THREE.Group();
+  // Halley & Swift-Tuttle (headRadius set in data) scale up uniformly so nucleus, coma and
+  // tails stay proportional while the click target grows ~1.7×.
+  if (c.headRadius) group.scale.setScalar(c.headRadius / 0.07);
   // Nucleus: lit rocky sphere (MeshStandardMaterial) with a faint emissive tint of the comet's
   // color so it stays visible even far from the Sun. Enlarged from 0.035 → 0.07 for easier
   // click capture (the head mesh is the raycast target).
@@ -1433,8 +1440,8 @@ function applyScaleMode() {
   eclipticPlane.scale.setScalar(isTrue ? AU_IN_EARTH_DIAMETERS : 1);
 
   camera.near = isTrue ? 1 : 0.001;
-  camera.far = isTrue ? 4e6 : 5000;        // covers sky sphere (~3.6M) now pushed beyond Eris
-  controls.maxDistance = isTrue ? 1.5e6 : 600;
+  camera.far = isTrue ? 8e6 : 5000;         // covers the sky sphere far side (~7M) when zoomed out toward it
+  controls.maxDistance = isTrue ? 3.4e6 : 600;  // was 1.5e6: let users zoom out to the starfield / sky-sphere boundary
   camera.updateProjectionMatrix();
 }
 
