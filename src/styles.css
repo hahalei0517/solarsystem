@@ -259,6 +259,10 @@
     width: 11px; height: 11px;
     box-shadow: 0 0 12px currentColor, 0 0 0 2px rgba(255,235,180,0.3);
   }
+  /* Sky-event markers split above/below the timeline so close-in-time events don't overlap.
+     Below is the default (bottom:2px); .above mirrors it to the top tier (above the scrubber). */
+  .event-marker.above { bottom: 30px; }
+  .event-marker.above.active { bottom: 33px; }
 
   #planet-labels { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   .pl-label {

@@ -1436,12 +1436,13 @@ function applyScaleMode() {
   skySphere.scale.setScalar(bg);
   starfield.scale.setScalar(bg);
   brightStarsGroup.scale.setScalar(bg);
+  skySphere.material.side = isTrue ? THREE.DoubleSide : THREE.BackSide;
   skySphere.material.opacity = isTrue ? 0.8 : 0.55;
   eclipticPlane.scale.setScalar(isTrue ? AU_IN_EARTH_DIAMETERS : 1);
 
   camera.near = isTrue ? 1 : 0.001;
-  camera.far = isTrue ? 8e6 : 5000;         // covers the sky sphere far side (~7M) when zoomed out toward it
-  controls.maxDistance = isTrue ? 3.4e6 : 600;  // was 1.5e6: let users zoom out to the starfield / sky-sphere boundary
+  camera.far = isTrue ? 1.5e7 : 5000;       // covers the sky-sphere far side (~13.6M) when zoomed outside it
+  controls.maxDistance = isTrue ? 1e7 : 600;  // zoom outside the 3.6M sky sphere to view the whole Milky Way ball
   camera.updateProjectionMatrix();
 }
 
@@ -1730,13 +1731,7 @@ let eventVisuals = null;
 // days = (UTC noon of date − J2000) / 86400000
 const HISTORICAL_EVENTS = [
   { name: '哈雷彗星近日点',     date: [1986, 2, 9],  desc: '哈雷彗星回归至近日点（距日约 0.59 AU），是 20 世纪最著名的彗星观测事件之一。' },
-  { name: '苏梅克-列维9号撞击木星', date: [1994, 7, 16], desc: '苏梅克-列维9号彗星分裂后的碎片陆续撞向木星，是人类首次直接观测到的天体撞击事件。' },
-  { name: '火星大冲（近6万年最近）', date: [2003, 8, 27], desc: '火星抵达近约 6 万年来距地球最近的位置（约 0.373 AU），视直径极大，利于观测。' },
-  { name: '金星凌日',           date: [2012, 6, 6],  desc: '金星从地球视角穿过太阳盘面，本世纪最后一次金星凌日，下次将等到 2117 年。' },
-  { name: '罗塞塔抵达67P彗星',   date: [2014, 8, 13], desc: '欧空局罗塞塔探测器成为首个环绕彗星（67P/丘留莫夫-格拉西缅科）运行的人造航天器。' },
   { name: '木星-土星大合',       date: [2020, 12, 21], desc: '木星与土星角距仅约 0.1°，为 1623 年以来最近的一次"大合"，两星几乎并排可见。' },
-  { name: '毅力号着陆火星',     date: [2021, 2, 18], desc: 'NASA 毅力号火星车着陆耶泽罗陨石坑，并搭载机智号无人机实现首次地外动力飞行。' },
-  { name: '北美日全食',         date: [2024, 4, 8],  desc: '日全食带横穿北美，月球本影覆盖墨西哥、美国与加拿大东部，全食最长逾 4 分钟。' },
 ].map((e) => ({ name: e.name, desc: e.desc, days: (Date.UTC(e.date[0], e.date[1] - 1, e.date[2], 12) - J2000.getTime()) / 86400000 }));
 
 function jumpToDate(days) {
@@ -2039,14 +2034,27 @@ function renderEventMarkers() {
   const timeline = document.getElementById('timeline');
   const sc = document.getElementById('scrubber');
   const min = +sc.min, max = +sc.max;
-  for (const ev of eventMarkers) {
+  // Sort by time and split markers above/below the timeline so neighbours that are close in
+  // time land on opposite sides — otherwise their hit areas overlap and can't be clicked.
+  const sorted = [...eventMarkers].sort((a, b) => a.days - b.days);
+  let lastAbove = -Infinity, lastBelow = -Infinity;
+  for (const ev of sorted) {
     const el = document.createElement('div');
     el.className = 'event-marker';
     const color = '#' + eventColor(ev).toString(16).padStart(6,'0');
     el.title = `${ev.label} (${formatDate(ev.days)})`;
-    el.style.left = eventMarkerLeftPx(ev.days);
+    const leftPx = eventMarkerLeftPx(ev.days);
+    el.style.left = leftPx;
     el.style.background = color;
     el.style.color = color;
+    // Place on the side whose last marker is farther away (least overlap).
+    const leftNum = parseFloat(leftPx);
+    if ((leftNum - lastAbove) > (leftNum - lastBelow)) {
+      el.classList.add('above');
+      lastAbove = leftNum;
+    } else {
+      lastBelow = leftNum;
+    }
     el.classList.toggle('active', state.eventFocus === ev);
     el.addEventListener('click', () => focusEventVisual(ev));
     timeline.appendChild(el);
