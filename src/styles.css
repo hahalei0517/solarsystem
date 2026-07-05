@@ -207,15 +207,6 @@
   }
   #timeline .stat { font-size: 11.5px; color: #8b949e; }
   #timeline .stat b { color: #e6edf3; font-weight: 500; }
-  #ephemeris-warning {
-    position: absolute; left: 14px; bottom: calc(100% + 8px);
-    max-width: min(520px, calc(100vw - 28px)); padding: 6px 9px;
-    border-radius: 999px; background: rgba(187,128,9,0.18);
-    border: 1px solid rgba(240,178,74,0.35); color: #ffd866;
-    font-size: 11.2px; line-height: 1.35; pointer-events: none;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-  }
-  #ephemeris-warning.hidden { display: none; }
 
   /* Celestial-event card — sits directly below the timeline (which lifts to make room). */
   #event-card {
@@ -435,9 +426,11 @@
     #info.collapsed #event-exit { display: none; }
     #info.collapsed .card-collapse { transform: rotate(180deg); }
 
-    /* Event card: bottom sheet, collapsible. */
+    /* Event card: mobile bottom sheet — sits above the timeline (which lifts to make room).
+       bottom = timeline default bottom (10 + safe-area) + timeline approx height (68) + gap (8). */
     #event-card {
       width: calc(100vw - 16px);
+      bottom: calc(86px + env(safe-area-inset-bottom));
       max-height: 40vh; max-height: 40dvh;
     }
     #event-card.collapsed .desc,

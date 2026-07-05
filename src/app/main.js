@@ -4,8 +4,6 @@ import {
   ephemerisCoordsAU,
   formatDateFromJ2000,
   getUtcYearFromJ2000Days,
-  EPHEMERIS_RECOMMENDED_YEAR_RANGE,
-  isWithinEphemerisRecommendedRange,
 } from '../core/orbits.js';
 import { describeSkyEvent, getEventColor, scanSkyEvents } from '../core/events.js';
 import {
@@ -1896,6 +1894,11 @@ function focusEventVisual(ev) {
   state.soloIndex = -1;
   state.focusIndex = -1;
   state.cometFocusIndex = -1;
+  // Hide the event-card summary while the info-card shows the focused event details —
+  // otherwise on mobile both would stack above the timeline and the info card would collide
+  // with the timeline that lifted to make room for the summary.
+  const ecard = document.getElementById('event-card');
+  if (ecard) { ecard.classList.add('hidden'); layoutEventCard(); }
   showEventInfo(ev);
   updatePlanetListUI();
 
@@ -1979,6 +1982,8 @@ function exitEventView() {
   closeInfoPanel();
   updatePlanetListUI();
   renderEventMarkers();
+  // Restore the event-card summary iff the events layer is still enabled.
+  if (state.showEvents) showEventCardSummary();
 }
 
 function scanEvents() {
@@ -2018,14 +2023,19 @@ function clearEvents() {
 }
 
 // Lift the timeline so it sits just above the event card; restore it when the card is hidden.
+// Uses the card's live viewport rect so the offset auto-includes safe-area-inset-bottom on mobile,
+// otherwise the fixed 22px gap only worked in the desktop layout and the timeline would land on
+// top of the card on phones (bottom-sheet event card + safe-area push desktop math off).
 function layoutEventCard() {
   const card = document.getElementById('event-card');
   const tl = document.getElementById('timeline');
   if (!card || !tl) return;
   if (card.classList.contains('hidden')) {
-    tl.style.bottom = ''; // CSS default (14px)
+    tl.style.bottom = ''; // CSS default
   } else {
-    tl.style.bottom = (card.offsetHeight + 22) + 'px'; // card bottom(14) + gap(8)
+    const cardTop = card.getBoundingClientRect().top;
+    const bottomFromViewport = window.innerHeight - cardTop + 8; // 8px gap above card
+    tl.style.bottom = bottomFromViewport + 'px';
   }
 }
 
@@ -2066,18 +2076,6 @@ function formatDate(simDays) {
   return formatDateFromJ2000(simDays, J2000);
 }
 
-function updateEphemerisWarning(simDays) {
-  const warning = document.getElementById('ephemeris-warning');
-  if (!warning) return;
-
-  const inRecommendedRange = isWithinEphemerisRecommendedRange(simDays, J2000);
-  warning.classList.toggle('hidden', inRecommendedRange);
-
-  if (!inRecommendedRange) {
-    warning.textContent = `超出近似星历推荐范围（${EPHEMERIS_RECOMMENDED_YEAR_RANGE.min}–${EPHEMERIS_RECOMMENDED_YEAR_RANGE.max}），行星位置和天象仅供示意。`;
-  }
-}
-
 function updateTimelineUI() {
   const d = new Date(J2000.getTime() + state.simDays * 86400000);
   const yyyy = d.getUTCFullYear();
@@ -2088,7 +2086,6 @@ function updateTimelineUI() {
   if (document.activeElement !== sc) sc.value = Math.round(state.simDays);
   const min = +sc.min, max = +sc.max;
   sc.style.setProperty('--p', ((+sc.value - min)/(max-min))*100 + '%');
-  updateEphemerisWarning(state.simDays);
 }
 
 // ---------- UI Controllers ----------

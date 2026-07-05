@@ -25,18 +25,15 @@ test('app boots and primary interactions work', async ({ page }) => {
   await expect(page.locator('#quality-seg button[data-quality="quality"]')).toHaveClass(/active/);
   await expect(page.locator('#planet-list')).toBeHidden(); // planet-list removed; layers menu took its place
   await expect(page.locator('#timeline')).toBeVisible();
-  await expect(page.locator('#ephemeris-warning')).toHaveClass(/hidden/);
+  // Scrubber still updates the sim date even at extremes; the old out-of-range warning was removed.
   await page.locator('#scrubber').evaluate((el) => {
     el.value = el.max;
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(page.locator('#ephemeris-warning')).not.toHaveClass(/hidden/);
-  await expect(page.locator('#ephemeris-warning')).toContainText('1800–2050');
   await page.locator('#scrubber').evaluate((el) => {
     el.value = '0';
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(page.locator('#ephemeris-warning')).toHaveClass(/hidden/);
 
   await page.locator('#scale-seg button[data-scale="true"]').click();
   await expect(page.locator('#scale-seg button[data-scale="true"]')).toHaveClass(/active/);
