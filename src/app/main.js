@@ -416,29 +416,6 @@ function makeEarthTexture() {
   return t;
 }
 
-// Procedural Earth cloud layer (white clumps on transparent canvas).
-function makeEarthCloudsTexture() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-  const cc = c.getContext('2d');
-  cc.clearRect(0, 0, 1024, 512);
-  cc.globalAlpha = 0.55; cc.fillStyle = '#ffffff';
-  for (let i = 0; i < 90; i++) {
-    const cx = Math.random()*1024, cy = Math.random()*512;
-    const rx = 30 + Math.random()*90, ry = 12 + Math.random()*30;
-    cc.beginPath(); cc.ellipse(cx, cy, rx, ry, Math.random()*Math.PI, 0, Math.PI*2); cc.fill();
-  }
-  // swirl bands
-  cc.globalAlpha = 0.25;
-  for (let i = 0; i < 6; i++) {
-    const y = Math.random()*512;
-    cc.fillRect(0, y, 1024, 6 + Math.random()*10);
-  }
-  cc.globalAlpha = 1;
-  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
-  t.wrapS = THREE.RepeatWrapping;
-  return t;
-}
-
 // Procedural Earth night-lights map (black ocean/land with scattered warm "city" specks).
 function makeEarthNightTexture() {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
@@ -1103,19 +1080,10 @@ function buildPlanet(p, idx) {
     mesh.add(buildAtmosphereShell(p.radius, ATMOSPHERE_COLORS[p.en]));
   }
 
-  // Earth extras: a faster-spinning cloud layer and a night-lights layer whose
-  // brightness fades in on the unlit hemisphere. Both are children of the spinning
-  // mesh. The night layer's sun direction is updated each frame in tick().
+  // Earth extras: a night-lights layer whose brightness fades in on the unlit hemisphere.
+  // The night layer's sun direction is updated each frame in tick().
   let cloudMesh = null, nightMesh = null;
   if (p.en === 'Earth') {
-    cloudMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(p.radius * 1.012, 48, 48),
-      new THREE.MeshStandardMaterial({
-        map: makeEarthCloudsTexture(), transparent: true, opacity: 0.55,
-        depthWrite: false, roughness: 1.0, metalness: 0.0
-      })
-    );
-    mesh.add(cloudMesh);
     nightMesh = new THREE.Mesh(
       new THREE.SphereGeometry(p.radius * 1.004, 48, 48),
       new THREE.ShaderMaterial({
