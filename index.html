@@ -8,100 +8,101 @@
 <link rel="stylesheet" href="/src/styles.css" />
 </head>
 <body>
-<div id="loader"><span>初始化 3D 引擎<span class="dot">...</span></span></div>
+<div id="loader"><span><span data-i18n="loader.init">初始化 3D 引擎</span><span class="dot">...</span></span></div>
 <canvas id="stage"></canvas>
 <div id="planet-labels"></div>
 
 <div id="top-bar" class="panel">
   <div class="group">
-    <span class="label">速度</span>
+    <span class="label" data-i18n="top.speed">速度</span>
     <div class="seg" id="speed-seg">
-      <button data-speed="hour">时</button>
-      <button data-speed="day" class="active">日</button>
-      <button data-speed="month">月</button>
-      <button data-speed="year">年</button>
+      <button data-speed="hour" data-i18n="speed.hour">时</button>
+      <button data-speed="day" class="active" data-i18n="speed.day">日</button>
+      <button data-speed="month" data-i18n="speed.month">月</button>
+      <button data-speed="year" data-i18n="speed.year">年</button>
     </div>
     <div class="mselect" id="speed-mselect">
-      <button class="mselect-trigger" type="button" aria-label="时间速率"><span class="mselect-label">日</span><span class="caret">▾</span></button>
+      <button class="mselect-trigger" type="button" data-i18n-attr="aria-label|mobile.speedLabel" aria-label="时间速率"><span class="mselect-label" data-i18n="speed.day">日</span><span class="caret">▾</span></button>
       <div class="mselect-menu">
-        <button class="mselect-option" data-value="hour" type="button">时</button>
-        <button class="mselect-option" data-value="day" type="button">日</button>
-        <button class="mselect-option" data-value="month" type="button">月</button>
-        <button class="mselect-option" data-value="year" type="button">年</button>
+        <button class="mselect-option" data-value="hour" type="button" data-i18n="speed.hour">时</button>
+        <button class="mselect-option" data-value="day" type="button" data-i18n="speed.day">日</button>
+        <button class="mselect-option" data-value="month" type="button" data-i18n="speed.month">月</button>
+        <button class="mselect-option" data-value="year" type="button" data-i18n="speed.year">年</button>
       </div>
     </div>
   </div>
   <div class="divider"></div>
   <div class="group">
-    <span class="label">尺度</span>
+    <span class="label" data-i18n="top.scale">尺度</span>
     <div class="seg" id="scale-seg">
-      <button data-scale="schematic" class="active">示意</button>
-      <button data-scale="real">真实</button>
-      <button data-scale="true">真比例</button>
+      <button data-scale="schematic" class="active" data-i18n="scale.schematic">示意</button>
+      <button data-scale="real" data-i18n="scale.real">真实</button>
+      <button data-scale="true" data-i18n="scale.true">真比例</button>
     </div>
     <div class="mselect" id="scale-mselect">
-      <button class="mselect-trigger" type="button" aria-label="尺度"><span class="mselect-label">示意</span><span class="caret">▾</span></button>
+      <button class="mselect-trigger" type="button" data-i18n-attr="aria-label|mobile.scaleLabel" aria-label="尺度"><span class="mselect-label" data-i18n="scale.schematic">示意</span><span class="caret">▾</span></button>
       <div class="mselect-menu">
-        <button class="mselect-option" data-value="schematic" type="button">示意</button>
-        <button class="mselect-option" data-value="real" type="button">真实</button>
-        <button class="mselect-option" data-value="true" type="button">真比例</button>
+        <button class="mselect-option" data-value="schematic" type="button" data-i18n="scale.schematic">示意</button>
+        <button class="mselect-option" data-value="real" type="button" data-i18n="scale.real">真实</button>
+        <button class="mselect-option" data-value="true" type="button" data-i18n="scale.true">真比例</button>
       </div>
     </div>
   </div>
   <div class="divider"></div>
   <div class="group">
-    <span class="label">画质</span>
+    <span class="label" data-i18n="top.quality">画质</span>
     <div class="seg" id="quality-seg">
-      <button data-quality="quality" class="active">高清</button>
-      <button data-quality="performance">性能</button>
+      <button data-quality="quality" class="active" data-i18n="quality.quality">高清</button>
+      <button data-quality="performance" data-i18n="quality.performance">性能</button>
     </div>
     <div class="mselect" id="quality-mselect">
-      <button class="mselect-trigger" type="button" aria-label="画质"><span class="mselect-label">高清</span><span class="caret">▾</span></button>
+      <button class="mselect-trigger" type="button" data-i18n-attr="aria-label|mobile.qualityLabel" aria-label="画质"><span class="mselect-label" data-i18n="quality.quality">高清</span><span class="caret">▾</span></button>
       <div class="mselect-menu">
-        <button class="mselect-option" data-value="quality" type="button">高清</button>
-        <button class="mselect-option" data-value="performance" type="button">性能</button>
+        <button class="mselect-option" data-value="quality" type="button" data-i18n="quality.quality">高清</button>
+        <button class="mselect-option" data-value="performance" type="button" data-i18n="quality.performance">性能</button>
       </div>
     </div>
   </div>
   <div class="divider"></div>
   <div class="group">
     <button class="icon-btn" id="play-btn">⏸</button>
-    <button class="icon-btn" id="reset-btn">↺ 视角</button>
+    <button class="icon-btn" id="reset-btn" data-i18n="action.reset">↺ 视角</button>
   </div>
   <div class="divider"></div>
   <div class="group toolbar-actions">
-    <button class="icon-btn on" id="layers-btn">图层</button>
-    <button class="icon-btn" id="help-btn">?</button>
-    <button class="solo-chip" id="solo-status">全景</button>
-    <button class="icon-btn" id="solo-btn">退出独显</button>
+    <button class="icon-btn on" id="layers-btn" data-i18n="action.layers">图层</button>
+    <button class="icon-btn" id="help-btn" data-i18n="action.help">?</button>
+    <button class="solo-chip" id="solo-status" data-i18n="action.panorama">全景</button>
+    <button class="icon-btn" id="solo-btn" data-i18n="action.exitSolo">退出独显</button>
+    <button class="icon-btn lang-toggle" id="lang-toggle" data-i18n="lang.button" data-i18n-attr="aria-label|lang.toggleLabel" aria-label="切换语言">中/EN</button>
   </div>
 </div>
 
 <div id="layers-menu" class="panel hidden">
   <div class="layers-head">
-    <button class="layers-close" id="layers-close" title="收起" aria-label="收起图层菜单">◀</button>
-    <span class="layers-title">图层</span>
+    <button class="layers-close" id="layers-close" data-i18n-attr="title|layer.closeTitle|aria-label|layer.closeAria" title="收起" aria-label="收起图层菜单">◀</button>
+    <span class="layers-title" data-i18n="layer.title">图层</span>
   </div>
-  <label class="layer-row"><span>轨道</span><input id="layer-orbits" type="checkbox" checked /></label>
-  <label class="layer-row"><span>黄道面</span><input id="layer-ecliptic" type="checkbox" /></label>
-  <label class="layer-row"><span>标签</span><input id="layer-labels" type="checkbox" checked /></label>
-  <label class="layer-row"><span>轨迹</span><input id="layer-trails" type="checkbox" checked /></label>
-  <label class="layer-row"><span>小行星</span><input id="layer-belts" type="checkbox" checked /></label>
-  <label class="layer-row"><span>彗星</span><input id="layer-comets" type="checkbox" /></label>
-  <label class="layer-row"><span>矮行星</span><input id="layer-dwarfs" type="checkbox" /></label>
-  <label class="layer-row"><span>天象事件</span><input id="layer-events" type="checkbox" /></label>
-  <label class="layer-row"><span>随光标旋转</span><input id="layer-rotate-cursor" type="checkbox" /></label>
-  <label class="layer-row"><span>地轴</span><input id="layer-axis" type="checkbox" checked /></label>
-  <label class="layer-row"><span>辉光</span><input id="layer-bloom" type="checkbox" checked /></label>
-  <label class="layer-row"><span>声音</span><input id="layer-sound" type="checkbox" /></label>
-  <label class="layer-row"><span>基底主题</span>
+  <label class="layer-row"><span data-i18n="layer.orbits">轨道</span><input id="layer-orbits" type="checkbox" checked /></label>
+  <label class="layer-row"><span data-i18n="layer.ecliptic">黄道面</span><input id="layer-ecliptic" type="checkbox" /></label>
+  <label class="layer-row"><span data-i18n="layer.labels">标签</span><input id="layer-labels" type="checkbox" checked /></label>
+  <label class="layer-row"><span data-i18n="layer.trails">轨迹</span><input id="layer-trails" type="checkbox" checked /></label>
+  <label class="layer-row"><span data-i18n="layer.belts">小行星</span><input id="layer-belts" type="checkbox" checked /></label>
+  <label class="layer-row"><span data-i18n="layer.comets">彗星</span><input id="layer-comets" type="checkbox" /></label>
+  <label class="layer-row"><span data-i18n="layer.dwarfs">矮行星</span><input id="layer-dwarfs" type="checkbox" /></label>
+  <label class="layer-row"><span data-i18n="layer.events">天象事件</span><input id="layer-events" type="checkbox" /></label>
+  <label class="layer-row"><span data-i18n="layer.rotateCursor">随光标旋转</span><input id="layer-rotate-cursor" type="checkbox" /></label>
+  <label class="layer-row"><span data-i18n="layer.axis">地轴</span><input id="layer-axis" type="checkbox" checked /></label>
+  <label class="layer-row"><span data-i18n="layer.bloom">辉光</span><input id="layer-bloom" type="checkbox" checked /></label>
+  <label class="layer-row"><span data-i18n="layer.sound">声音</span><input id="layer-sound" type="checkbox" /></label>
+  <label class="layer-row"><span data-i18n="layer.audioTheme">基底主题</span>
     <select id="audio-theme">
-      <option value="space1">太空音效1</option>
-      <option value="deep">深空</option>
-      <option value="nebula">星云</option>
-      <option value="orbit">轨道</option>
-      <option value="solar">太阳风</option>
-      <option value="custom">自定义文件…</option>
+      <option value="space1" data-i18n="theme.space1">太空音效1</option>
+      <option value="deep" data-i18n="theme.deep">深空</option>
+      <option value="nebula" data-i18n="theme.nebula">星云</option>
+      <option value="orbit" data-i18n="theme.orbit">轨道</option>
+      <option value="solar" data-i18n="theme.solar">太阳风</option>
+      <option value="custom" data-i18n="theme.custom">自定义文件…</option>
     </select>
   </label>
   <input type="file" id="audio-file" accept="audio/*" style="display:none" />
@@ -121,8 +122,8 @@
 
 <div id="planet-list" class="panel">
   <div class="list-header">
-    <h3>行星</h3>
-    <button id="toggle-list" class="icon-btn" title="收起/展开">◀</button>
+    <h3 data-i18n="planetList.title">行星</h3>
+    <button id="toggle-list" class="icon-btn" data-i18n-attr="title|planetList.toggleTitle" title="收起/展开">◀</button>
   </div>
   <div id="planet-rows"></div>
 </div>
@@ -131,16 +132,16 @@
   <div class="title">
     <span class="swatch" id="info-swatch"></span>
     <h2 id="info-name">—</h2>
-    <button class="card-collapse" id="info-collapse" title="折叠/展开" aria-label="折叠或展开">▾</button>
-    <button class="info-close" id="info-close" title="关闭信息卡">×</button>
+    <button class="card-collapse" id="info-collapse" data-i18n-attr="title|info.collapseTitle|aria-label|info.collapseAria" title="折叠/展开" aria-label="折叠或展开">▾</button>
+    <button class="info-close" id="info-close" data-i18n-attr="title|info.closeTitle" title="关闭信息卡">×</button>
   </div>
   <p class="desc" id="info-desc"></p>
   <div class="info-fact" id="info-fact" style="display:none;"></div>
   <dl id="info-stats"></dl>
   <div id="info-compare" class="info-compare"></div>
-  <button id="event-exit" title="退出事件视图">退出事件视图</button>
+  <button id="event-exit" data-i18n-attr="title|info.exitEvent" title="退出事件视图" data-i18n="info.exitEvent">退出事件视图</button>
   <div class="moons" id="info-moons-wrap" style="display:none;">
-    <h4>主要卫星</h4>
+    <h4 data-i18n="info.majorMoons">主要卫星</h4>
     <div id="info-moons"></div>
     <div id="moon-detail" style="display:none;"></div>
   </div>
@@ -149,16 +150,16 @@
 <div id="timeline" class="panel">
   <div class="date" id="sim-date">2000-01-01</div>
   <input type="range" class="scrubber" id="scrubber" min="-18250" max="36500" value="0" step="1" />
-  <button class="icon-btn" id="today-btn" style="padding:4px 9px;font-size:11.5px;">今天</button>
-  <div class="stat">速度 <b id="speed-info">1 天/秒</b></div>
+  <button class="icon-btn" id="today-btn" style="padding:4px 9px;font-size:11.5px;" data-i18n="timeline.today">今天</button>
+  <div class="stat"><span data-i18n="timeline.speedLabel">速度</span> <b id="speed-info">1 天/秒</b></div>
 </div>
 
 <div id="event-card" class="panel hidden">
   <div class="ec-head">
     <span class="swatch" id="ec-swatch" style="display:none;"></span>
-    <h2 id="ec-name">重要天象</h2>
-    <button class="card-collapse" id="ec-collapse" title="折叠/展开" aria-label="折叠或展开">▾</button>
-    <button class="info-close" id="ec-close" title="关闭">×</button>
+    <h2 id="ec-name" data-i18n="events.title">重要天象</h2>
+    <button class="card-collapse" id="ec-collapse" data-i18n-attr="title|events.collapseTitle|aria-label|info.collapseAria" title="折叠/展开" aria-label="折叠或展开">▾</button>
+    <button class="info-close" id="ec-close" data-i18n-attr="title|events.closeTitle" title="关闭">×</button>
   </div>
   <p class="desc" id="ec-desc"></p>
   <dl id="ec-stats"></dl>
@@ -166,36 +167,36 @@
 
 <div id="help-panel" class="panel hidden">
   <div class="help-title">
-    <h3>操作帮助</h3>
-    <button class="info-close" id="help-close" title="关闭帮助">×</button>
+    <h3 data-i18n="help.title">操作帮助</h3>
+    <button class="info-close" id="help-close" data-i18n-attr="title|help.closeTitle" title="关闭帮助">×</button>
   </div>
   <div class="help-shortcuts help-desktop">
-    <div><span class="kbd">拖拽</span><span>旋转视角</span></div>
-    <div><span class="kbd">滚轮</span><span>缩放到光标</span></div>
-    <div><span class="kbd">点击行星</span><span>聚焦并独显</span></div>
-    <div><span class="kbd">1-8</span><span>快速聚焦八大行星</span></div>
-    <div><span class="kbd">Space</span><span>播放 / 暂停</span></div>
-    <div><span class="kbd">Esc / 0</span><span>退出独显</span></div>
-    <div><span class="kbd">O L B C E T</span><span>轨道 / 标签 / 小行星 / 彗星 / 黄道面 / 轨迹</span></div>
-    <div><span class="kbd">V</span><span>随光标旋转（左键拖拽以所指天体为中心）</span></div>
-    <div><span class="kbd">点击天体</span><span>行星独显 / 彗星·矮行星·太阳信息卡</span></div>
-    <div><span class="kbd">R</span><span>重置视角</span></div>
-    <div><span class="kbd">图层▸声音</span><span>开启音效；可在「基底主题」切换深空 / 星云 / 轨道 / 太阳风，或加载自定义音频文件</span></div>
+    <div><span class="kbd" data-i18n="help.desktop.drag">拖拽</span><span data-i18n="help.desktop.dragDesc">旋转视角</span></div>
+    <div><span class="kbd" data-i18n="help.desktop.scroll">滚轮</span><span data-i18n="help.desktop.scrollDesc">缩放到光标</span></div>
+    <div><span class="kbd" data-i18n="help.desktop.clickPlanet">点击行星</span><span data-i18n="help.desktop.clickPlanetDesc">聚焦并独显</span></div>
+    <div><span class="kbd">1-8</span><span data-i18n="help.desktop.keys1-8Desc">快速聚焦八大行星</span></div>
+    <div><span class="kbd">Space</span><span data-i18n="help.desktop.spaceDesc">播放 / 暂停</span></div>
+    <div><span class="kbd">Esc / 0</span><span data-i18n="help.desktop.escDesc">退出独显</span></div>
+    <div><span class="kbd">O L B C E T</span><span data-i18n="help.desktop.olbcetDesc">轨道 / 标签 / 小行星 / 彗星 / 黄道面 / 轨迹</span></div>
+    <div><span class="kbd">V</span><span data-i18n="help.desktop.vDesc">随光标旋转（左键拖拽以所指天体为中心）</span></div>
+    <div><span class="kbd" data-i18n="help.desktop.clickBody">点击天体</span><span data-i18n="help.desktop.clickBodyDesc">行星独显 / 彗星·矮行星·太阳信息卡</span></div>
+    <div><span class="kbd">R</span><span data-i18n="help.desktop.rDesc">重置视角</span></div>
+    <div><span class="kbd" data-i18n="help.desktop.sound">图层▸声音</span><span data-i18n="help.desktop.soundDesc">开启音效；可在「基底主题」切换深空 / 星云 / 轨道 / 太阳风，或加载自定义音频文件</span></div>
   </div>
   <div class="help-shortcuts help-mobile">
-    <div><span class="kbd">单指拖动</span><span>旋转视角</span></div>
-    <div><span class="kbd">双指捏合</span><span>缩放（缩放到捏合点）</span></div>
-    <div><span class="kbd">双指拖动</span><span>平移视角</span></div>
-    <div><span class="kbd">点击行星</span><span>独显该行星；再次点击同一颗退出独显</span></div>
-    <div><span class="kbd">顶栏下拉</span><span>切换时间速率 / 尺度 / 画质</span></div>
-    <div><span class="kbd">暂停键</span><span>播放 / 暂停</span></div>
-    <div><span class="kbd">图层按钮</span><span>打开图层菜单（左上 ◀ 收起）</span></div>
-    <div><span class="kbd">信息卡 ▾</span><span>展开 / 收起详情</span></div>
-    <div><span class="kbd">图层▸声音</span><span>开启音效；可切换基底主题或加载自定义音频</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.dragOne">单指拖动</span><span data-i18n="help.mobile.dragOneDesc">旋转视角</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.pinch">双指捏合</span><span data-i18n="help.mobile.pinchDesc">缩放（缩放到捏合点）</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.twoDrag">双指拖动</span><span data-i18n="help.mobile.twoDragDesc">平移视角</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.tapPlanet">点击行星</span><span data-i18n="help.mobile.tapPlanetDesc">独显该行星；再次点击同一颗退出独显</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.topDropdown">顶栏下拉</span><span data-i18n="help.mobile.topDropdownDesc">切换时间速率 / 尺度 / 画质</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.pause">暂停键</span><span data-i18n="help.mobile.pauseDesc">播放 / 暂停</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.layers">图层按钮</span><span data-i18n="help.mobile.layersDesc">打开图层菜单（左上 ◀ 收起）</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.cardCollapse">信息卡 ▾</span><span data-i18n="help.mobile.cardCollapseDesc">展开 / 收起详情</span></div>
+    <div><span class="kbd" data-i18n="help.mobile.sound">图层▸声音</span><span data-i18n="help.mobile.soundDesc">开启音效；可切换基底主题或加载自定义音频</span></div>
   </div>
   <div class="help-note">
-    <strong>科学精度说明</strong>
-    <p>本项目用于教育可视化，不是精密天文软件。示意模式会夸张距离和大小；真实模式使用近似日心轨道元素，推荐在 1800–2050 年附近查看。卫星、彗星、小行星带和辉光均为视觉简化。真比例模式以 1 地球直径为单位，行星、太阳、卫星按真实尺寸、轨道按真实 AU 显示；由于尺度悬殊，外行星视野下行星几乎不可见，切换时镜头会自动拉远，用于直观感受太空之空旷。</p>
+    <strong data-i18n="help.noteTitle">科学精度说明</strong>
+    <p data-i18n="help.noteBody">本项目用于教育可视化，不是精密天文软件。示意模式会夸张距离和大小；真实模式使用近似日心轨道元素，推荐在 1800–2050 年附近查看。卫星、彗星、小行星带和辉光均为视觉简化。真比例模式以 1 地球直径为单位，行星、太阳、卫星按真实尺寸、轨道按真实 AU 显示；由于尺度悬殊，外行星视野下行星几乎不可见，切换时镜头会自动拉远，用于直观感受太空之空旷。</p>
   </div>
 </div>
 

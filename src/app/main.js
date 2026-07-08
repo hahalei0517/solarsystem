@@ -19,6 +19,16 @@ import { createPlanetListController } from './ui/planet-list.js';
 import { createControlsController } from './ui/controls.js';
 import { installSelectionHandlers } from './input-selection.js';
 import { sound, initAudio, disableAudio } from './audio.js';
+import { t, setLang, currentLang, applyTranslations, onLangChange } from './i18n/index.js';
+import {
+  bodyName,
+  bodyTitle,
+  localizedSun,
+  localizedPlanet,
+  localizedComet,
+  localizedDwarf,
+  localizedSpeedLabel,
+} from './i18n/bodies.js';
 
 const THREE = window.THREE;
 if (!THREE) throw new Error('three.min.js 加载失败，检查文件是否与 index.html 同目录');
@@ -59,6 +69,9 @@ const state = createSimulationState({
   renderQuality: prefersPerformanceMode() ? 'performance' : 'quality',
 });
 
+document.documentElement.lang = currentLang();
+applyTranslations(document);
+
 function currentQuality() {
   return QUALITY_PRESETS[state.renderQuality] || QUALITY_PRESETS.quality;
 }
@@ -89,7 +102,7 @@ loadingManager.onProgress = (url, loaded, total) => {
   const l = document.getElementById('loader');
   if (!l || !total) return;
   const pct = Math.round((loaded / total) * 100);
-  l.innerHTML = `<span>加载 NASA 贴图 ${loaded}/${total} · ${pct}%<span class="dot">...</span></span>`;
+  l.innerHTML = `<span><span>${t('loader.texture', { loaded, total, pct })}</span><span class="dot">...</span></span>`;
 };
 loadingManager.onError = (url) => {
   console.warn('texture failed:', url);
@@ -545,14 +558,14 @@ scene.add(skySphere);
 // A handful of famous stars placed at fixed directions on the sky sphere, with
 // labels, to give the starfield recognizable anchors. Positions are illustrative.
 const BRIGHT_STARS = [
-  { name: "天狼星 Sirius",     dir: [0.50, -0.20, 0.84] },
-  { name: "织女星 Vega",       dir: [0.30,  0.80, -0.50] },
-  { name: "北极星 Polaris",    dir: [0.00,  0.95, 0.30] },
-  { name: "参宿四 Betelgeuse", dir: [-0.60, 0.10, 0.80] },
-  { name: "参宿七 Rigel",      dir: [-0.50, -0.30, 0.80] },
-  { name: "大角星 Arcturus",   dir: [0.70,  0.20, 0.70] },
-  { name: "牛郎星 Altair",     dir: [0.20,  0.10, -0.97] },
-  { name: "天津四 Deneb",      dir: [-0.20, 0.60, -0.77] },
+  { key: 'sirius',     name: "天狼星 Sirius",     dir: [0.50, -0.20, 0.84] },
+  { key: 'vega',       name: "织女星 Vega",       dir: [0.30,  0.80, -0.50] },
+  { key: 'polaris',    name: "北极星 Polaris",    dir: [0.00,  0.95, 0.30] },
+  { key: 'betelgeuse', name: "参宿四 Betelgeuse", dir: [-0.60, 0.10, 0.80] },
+  { key: 'rigel',      name: "参宿七 Rigel",      dir: [-0.50, -0.30, 0.80] },
+  { key: 'arcturus',   name: "大角星 Arcturus",   dir: [0.70,  0.20, 0.70] },
+  { key: 'altair',     name: "牛郎星 Altair",     dir: [0.20,  0.10, -0.97] },
+  { key: 'deneb',      name: "天津四 Deneb",      dir: [-0.20, 0.60, -0.77] },
 ];
 const BRIGHT_STAR_RADIUS = 430;
 function makeStarDotTexture() {
@@ -579,9 +592,9 @@ const brightStarLabels = [];
     brightStarsGroup.add(sp);
     const lab = document.createElement('div');
     lab.className = 'pl-label star-label';
-    lab.textContent = s.name;
+    lab.textContent = t(`brightStars.${s.key}`);
     document.getElementById('planet-labels').appendChild(lab);
-    brightStarLabels.push({ label: lab, sprite: sp });
+    brightStarLabels.push({ label: lab, sprite: sp, key: s.key });
   }
   scene.add(brightStarsGroup);
 })();
@@ -922,7 +935,7 @@ function buildComet(c, idx) {
 
   const lab = document.createElement('div');
   lab.className = 'pl-label';
-  lab.textContent = c.name;
+  lab.textContent = bodyName(c);
   document.getElementById('planet-labels').appendChild(lab);
 
   return { group, head, tail, dustTail, coma, orbitLine, label: lab, data: c };
@@ -1219,7 +1232,7 @@ function buildPlanet(p, idx) {
   // HTML label
   const lab = document.createElement('div');
   lab.className = 'pl-label';
-  lab.textContent = p.name;
+  lab.textContent = bodyName(p);
   document.getElementById('planet-labels').appendChild(lab);
 
   // True-scale locatability marker (child of group → follows planet)
@@ -1295,7 +1308,7 @@ function buildDwarf(d, idx) {
 
   const lab = document.createElement('div');
   lab.className = 'pl-label';
-  lab.textContent = d.name;
+  lab.textContent = bodyName(d);
   document.getElementById('planet-labels').appendChild(lab);
 
   return { group, mesh, orbitLine, label: lab, data: d };
@@ -1333,13 +1346,13 @@ const _q = new THREE.Quaternion();
 const _v = new THREE.Vector3();
 const _s = new THREE.Vector3();
 
-function updateBelt(im, data, sizeScale) {
+function updateBelt(im, data, sizeScale, schematicScale = 1.15) {
   const count = Math.min(data.length, im.count);
   for (let i = 0; i < count; i++) {
     const d = data[i];
     const aScale = state.scaleMode === 'true'
       ? AU_IN_EARTH_DIAMETERS
-      : (state.scaleMode === 'real' ? 1 : (1.15 / 1.0)); // schematic: 1 AU ≈ Earth orbit @1.15
+      : (state.scaleMode === 'real' ? 1 : schematicScale);
     const a = d.a * aScale;
     const T = Math.pow(d.a, 1.5) * 365.25;
     const M = ((state.simDays + d.phase*T/(Math.PI*2)) % T) / T * Math.PI * 2;
@@ -1484,7 +1497,8 @@ function updateLabels() {
   if (!state.showLabels) return;
   for (let i = 0; i < planetObjs.length; i++) {
     const po = planetObjs[i];
-    const visible = (state.soloIndex === -1 || state.soloIndex === i) && state.visible.has(i) && !state.soloSun;
+    const visible = (state.soloIndex === -1 || state.soloIndex === i) && state.visible.has(i) && !state.soloSun
+      && state.soloCometIndex === -1 && state.soloDwarfIndex === -1;
     if (!visible) { po.label.style.display = 'none'; continue; }
     tmpVec.copy(po.mesh.getWorldPosition(new THREE.Vector3()));
     tmpVec.project(camera);
@@ -1497,7 +1511,7 @@ function updateLabels() {
     po.label.style.top  = y + 'px';
   }
   // Bright star labels
-  const showStars = state.showLabels && state.soloIndex === -1;
+  const showStars = state.showLabels && state.soloIndex === -1 && state.soloCometIndex === -1 && state.soloDwarfIndex === -1;
   brightStarsGroup.visible = showStars;
   for (const bs of brightStarLabels) {
     if (!showStars) { bs.label.style.display = 'none'; continue; }
@@ -1537,7 +1551,9 @@ function updateScaleBar() {
   }
   pxLen = Math.max(30, Math.min(150, pxLen));
   line.style.width = pxLen + 'px';
-  label.textContent = chosen >= 1 ? `${chosen} AU` : `${(chosen * 149.6).toFixed(chosen < 0.1 ? 1 : 0)} 百万 km`;
+  label.textContent = chosen >= 1
+    ? t('scale.au', { n: chosen })
+    : t('scale.millionKm', { n: (chosen * 149.6).toFixed(chosen < 0.1 ? 1 : 0) });
   bar.style.display = 'flex';
 }
 
@@ -1561,7 +1577,8 @@ function tick() {
   // Update planets
   for (let i = 0; i < planetObjs.length; i++) {
     const po = planetObjs[i];
-    const visible = (state.soloIndex === -1 || state.soloIndex === i) && state.visible.has(i) && !state.soloSun;
+    const visible = (state.soloIndex === -1 || state.soloIndex === i) && state.visible.has(i) && !state.soloSun
+      && state.soloCometIndex === -1 && state.soloDwarfIndex === -1;
     po.group.visible = visible;
     po.orbitLine.visible = state.showOrbits && visible;
     // Highlight the focused/soloed planet's orbit; dim the rest for contrast.
@@ -1627,18 +1644,18 @@ function tick() {
   kuiperBelt.visible = state.showBelts;
   eclipticPlane.visible = state.showEcliptic;
 
-  // Update Halley's comet
+  // Update comets
   for (let ci = 0; ci < cometObjs.length; ci++) {
     const co = cometObjs[ci];
     const c = co.data;
-    const visible = state.showComets;
+    const visible = state.showComets && (state.soloCometIndex === -1 || state.soloCometIndex === ci);
     co.group.visible = visible;
-    const orbitOn = state.showComets && state.showOrbits;
+    const orbitOn = visible && state.showOrbits;
     co.orbitLine.visible = orbitOn;
-    // Highlight the focused comet's orbit; dim the rest for contrast.
+    // Highlight the focused/soloed comet's orbit; dim the rest for contrast.
     if (orbitOn) {
-      const focused = state.cometFocusIndex === ci;
-      co.orbitLine.material.opacity = focused ? 0.95 : (state.cometFocusIndex >= 0 ? 0.12 : 0.26);
+      const focused = state.cometFocusIndex === ci || state.soloCometIndex === ci;
+      co.orbitLine.material.opacity = focused ? 0.95 : ((state.cometFocusIndex >= 0 || state.soloCometIndex >= 0) ? 0.12 : 0.26);
     }
     co.label.style.display = 'none';
     if (!visible) continue;
@@ -1674,7 +1691,7 @@ function tick() {
     co.coma.scale.set(comaScale, comaScale, 1);
     co.coma.material.opacity = Math.min(0.75, 0.6 / Math.max(0.5, dist));
 
-    if (state.showLabels) {
+    if (state.showLabels && (state.soloCometIndex === -1 || state.soloCometIndex === ci)) {
       const tmp = pos.clone().project(camera);
       co.label.style.display = (tmp.z < 1) ? 'block' : 'none';
       co.label.style.left = ((tmp.x*0.5+0.5)*window.innerWidth) + 'px';
@@ -1682,22 +1699,28 @@ function tick() {
     }
   }
   if (state.showBelts) {
-    updateBelt(asteroidBelt, asteroidData, 1.0);
+    updateBelt(asteroidBelt, asteroidData, 1.0, 0.76); // schematic: keep belt between Mars and Jupiter
     updateBelt(kuiperBelt, kuiperData, 1.2);
   }
 
   // Update dwarf planets (Pluto / Ceres / Eris)
-  for (const dwo of dwarfObjs) {
-    const visible = state.showDwarfs;
+  for (let di = 0; di < dwarfObjs.length; di++) {
+    const dwo = dwarfObjs[di];
+    const visible = state.showDwarfs && (state.soloDwarfIndex === -1 || state.soloDwarfIndex === di);
     dwo.group.visible = visible;
     const orbitOn = visible && state.showOrbits;
     dwo.orbitLine.visible = orbitOn;
+    // Highlight the soloed dwarf's orbit; dim the rest for contrast.
+    if (orbitOn) {
+      const focused = state.soloDwarfIndex === di;
+      dwo.orbitLine.material.opacity = focused ? 0.95 : (state.soloDwarfIndex >= 0 ? 0.12 : 0.4);
+    }
     dwo.label.style.display = 'none';
     if (!visible) continue;
     const pos = cometOrbitPos(dwo.data, state.simDays);
     dwo.group.position.copy(pos);
     if (spin) dwo.mesh.rotation.y += dt * 0.05;
-    if (state.showLabels) {
+    if (state.showLabels && (state.soloDwarfIndex === -1 || state.soloDwarfIndex === di)) {
       const tmp = pos.clone().project(camera);
       dwo.label.style.display = (tmp.z < 1) ? 'block' : 'none';
       dwo.label.style.left = ((tmp.x*0.5+0.5)*window.innerWidth) + 'px';
@@ -1705,7 +1728,7 @@ function tick() {
     }
   }
 
-  if (eventVisuals && state.eventFocus && state.eventFocus.type === '凌日') {
+  if (eventVisuals && state.eventFocus && state.eventFocus.typeCode === 'transit') {
     eventVisuals.children.forEach(obj => {
       if (obj.geometry && obj.geometry.type === 'RingGeometry') obj.lookAt(camera.position);
     });
@@ -1718,7 +1741,7 @@ function tick() {
   else renderer.render(scene, camera);
   updateLabels();
   updateTimelineUI();
-  document.getElementById('speed-info').textContent = SPEED_MODES[state.speedMode].label;
+  document.getElementById('speed-info').textContent = localizedSpeedLabel(state.speedMode);
   requestAnimationFrame(tick);
 }
 
@@ -1727,10 +1750,19 @@ let eventVisuals = null;
 
 // ---------- Historical astronomy event anchors on the timeline ----------
 // days = (UTC noon of date − J2000) / 86400000
-const HISTORICAL_EVENTS = [
-  { name: '哈雷彗星近日点',     date: [1986, 2, 9],  desc: '哈雷彗星回归至近日点（距日约 0.59 AU），是 20 世纪最著名的彗星观测事件之一。' },
-  { name: '木星-土星大合',       date: [2020, 12, 21], desc: '木星与土星角距仅约 0.1°，为 1623 年以来最近的一次"大合"，两星几乎并排可见。' },
-].map((e) => ({ name: e.name, desc: e.desc, days: (Date.UTC(e.date[0], e.date[1] - 1, e.date[2], 12) - J2000.getTime()) / 86400000 }));
+const HISTORICAL_EVENTS_BASE = [
+  { key: 'halley',          date: [1986, 2, 9] },
+  { key: 'greatConjunction', date: [2020, 12, 21] },
+];
+function getHistoricalEvents() {
+  return HISTORICAL_EVENTS_BASE.map((e) => ({
+    key: e.key,
+    name: t(`historic.${e.key}.name`),
+    desc: t(`historic.${e.key}.desc`),
+    days: (Date.UTC(e.date[0], e.date[1] - 1, e.date[2], 12) - J2000.getTime()) / 86400000,
+  }));
+}
+let HISTORICAL_EVENTS = getHistoricalEvents();
 
 function jumpToDate(days) {
   state.simDays = days;
@@ -1798,8 +1830,8 @@ function showHistoricInfo(ev) {
   document.getElementById('info-name').textContent = ev.name;
   document.getElementById('info-desc').textContent = ev.desc;
   const dl = document.getElementById('info-stats');
-  dl.innerHTML = `<dt>类型</dt><dd>历史天象锚点</dd>`
-    + `<dt>日期</dt><dd>${formatDate(ev.days)}</dd>`;
+  dl.innerHTML = `<dt>${t('label.type')}</dt><dd>${t('historic.type.anchor')}</dd>`
+    + `<dt>${t('label.date')}</dt><dd>${formatDate(ev.days)}</dd>`;
   document.getElementById('info-moons-wrap').style.display = 'none';
   const exit = document.getElementById('event-exit');
   if (exit) exit.style.display = 'block';
@@ -1807,6 +1839,7 @@ function showHistoricInfo(ev) {
 
 // Sun info card with an educational sunspot-cycle phase indicator.
 function showSunInfo() {
+  const sunLoc = localizedSun();
   const info = document.getElementById('info');
   info.classList.remove('hidden');
   const exitBtn = document.getElementById('event-exit');
@@ -1814,30 +1847,30 @@ function showSunInfo() {
   const swatch = document.getElementById('info-swatch');
   swatch.style.background = '#' + SUN.color.toString(16).padStart(6,'0');
   swatch.style.color = swatch.style.background;
-  document.getElementById('info-name').textContent = `${SUN.name} · ${SUN.en}`;
-  document.getElementById('info-desc').textContent = SUN.desc;
+  document.getElementById('info-name').textContent = bodyTitle(SUN);
+  document.getElementById('info-desc').textContent = sunLoc.desc;
   const factEl = document.getElementById('info-fact');
-  if (factEl) { factEl.textContent = '💡 太阳每秒把约 400 万吨物质转化为能量，已持续约 46 亿年。'; factEl.style.display = 'block'; }
+  if (factEl) { factEl.textContent = `${t('label.factPrefix')} ${sunLoc.fact}`; factEl.style.display = 'block'; }
   const dl = document.getElementById('info-stats'); dl.innerHTML = '';
   // Sunspot (Schwabe) cycle phase ≈ 11 years, reference solar max 2001.
   const year = getUtcYearFromJ2000Days(state.simDays, J2000);
   const phase = (((year - SUN_SPOT_CYCLE.referencePeak) % SUN_SPOT_CYCLE.years) + SUN_SPOT_CYCLE.years) % SUN_SPOT_CYCLE.years;
-  let activity;
-  if (phase < 2) activity = '极大期（黑子数峰值，日冕物质抛射频繁）';
-  else if (phase < 5) activity = '下降期（黑子数减少）';
-  else if (phase < 7) activity = '极小期（黑子稀少，活动平静）';
-  else activity = '上升期（黑子数增多，趋向极大）';
-  dl.innerHTML += `<dt>☀️ 黑子活动</dt><dd>${activity}</dd>`
-    + `<dt>📅 模拟年份</dt><dd>${year}</dd>`
-    + `<dt>📡 黑子周期</dt><dd>约 ${SUN_SPOT_CYCLE.years} 年</dd>`;
-  for (const [k,v] of Object.entries(SUN.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+  let activityKey;
+  if (phase < 2) activityKey = 'sun.activity.peak';
+  else if (phase < 5) activityKey = 'sun.activity.declining';
+  else if (phase < 7) activityKey = 'sun.activity.minimum';
+  else activityKey = 'sun.activity.rising';
+  dl.innerHTML += `<dt>${t('label.sunActivity')}</dt><dd>${t(activityKey)}</dd>`
+    + `<dt>${t('label.simYear')}</dt><dd>${year}</dd>`
+    + `<dt>${t('label.sunspotCycle')}</dt><dd>${t('unit.approx')} ${SUN_SPOT_CYCLE.years} ${t('unit.years')}</dd>`;
+  for (const [k,v] of Object.entries(sunLoc.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
   const bar = document.getElementById('info-compare');
   if (bar) {
     const ratio = SUN.realDiameterKm / 12742;
     const pct = Math.min(100, Math.log10(ratio + 1) / Math.log10(12) * 100);
-    bar.innerHTML = `<div class="cmp"><span class="cmp-label">直径对比地球</span>`
+    bar.innerHTML = `<div class="cmp"><span class="cmp-label">${t('compare.label')}</span>`
       + `<span class="cmp-bar"><span class="cmp-fill" style="width:${pct}%"></span></span>`
-      + `<span class="cmp-val">${ratio.toFixed(2)}× 地球</span></div>`;
+      + `<span class="cmp-val">${ratio.toFixed(2)}${t('compare.unit')}</span></div>`;
   }
   document.getElementById('info-moons-wrap').style.display = 'none';
 }
@@ -1866,7 +1899,7 @@ function disposeEventVisuals({ keepFocus = false } = {}) {
 }
 
 function eventColor(ev) {
-  return getEventColor(ev.type);
+  return getEventColor(ev.typeCode);
 }
 
 function resetTrailsAndRevs() {
@@ -1914,7 +1947,7 @@ function focusEventVisual(ev) {
   const marker = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.34, depthWrite: false }));
   marker.position.copy(bodyPos);
   group.add(marker);
-  if (ev.type === '凌日') {
+  if (ev.typeCode === 'transit') {
     const sunMark = new THREE.Mesh(
       new THREE.RingGeometry(SUN.radius*1.08, SUN.radius*1.25, 64),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false })
@@ -1946,27 +1979,18 @@ function showEventInfo(ev) {
   const cc = '#' + eventColor(ev).toString(16).padStart(6,'0');
   swatch.style.background = cc;
   swatch.style.color = cc;
-  document.getElementById('info-name').textContent = `${ev.label} · ${ev.type}`;
+  document.getElementById('info-name').textContent = `${ev.label} · ${ev.typeLabel}`;
   document.getElementById('info-desc').textContent = eventDescription(ev);
   const dl = document.getElementById('info-stats');
-  const angleLabel = ev.type === '合行星' ? '两星角距' : '地球视角角距';
-  const bodies = ev.type === '合行星'
-    ? `${p.name} / ${PLANETS[ev.bodyB].name}`
-    : p.name;
-  const effect = {
-    '凌日': '水星/金星位于日地之间，标出日-地-行星连线',
-    '合日': '行星与太阳同向，淹没于日光',
-    '冲日': '行星与太阳相对，整夜可见',
-    '东大距': '内行星昏星，日落后西天',
-    '西大距': '内行星晨星，日出前东天',
-    '方照': '行星与太阳成 90° 角',
-    '合行星': '两颗行星在视线方向上相合',
-  }[ev.type] || '地球-太阳/行星连线';
-  dl.innerHTML = `<dt>类型</dt><dd>${ev.type}</dd>`
-    + `<dt>日期</dt><dd>${formatDate(ev.days)}</dd>`
-    + `<dt>相关天体</dt><dd>${bodies}</dd>`
-    + `<dt>${angleLabel}</dt><dd>${ev.angle.toFixed(ev.type === '冲日' || ev.type === '方照' ? 1 : 2)}°</dd>`
-    + `<dt>展示效果</dt><dd>${effect}</dd>`;
+  const angleLabel = ev.typeCode === 'planetConjunction' ? t('label.angle') : t('label.earthAngle');
+  const bodies = ev.typeCode === 'planetConjunction'
+    ? `${bodyName(p)} / ${bodyName(PLANETS[ev.bodyB])}`
+    : bodyName(p);
+  dl.innerHTML = `<dt>${t('label.type')}</dt><dd>${ev.typeLabel}</dd>`
+    + `<dt>${t('label.date')}</dt><dd>${formatDate(ev.days)}</dd>`
+    + `<dt>${t('label.bodies')}</dt><dd>${bodies}</dd>`
+    + `<dt>${angleLabel}</dt><dd>${ev.angle.toFixed(ev.typeCode === 'opposition' || ev.typeCode === 'quadrature' ? 1 : 2)}°</dd>`
+    + `<dt>${t('label.effect')}</dt><dd>${ev.effect}</dd>`;
   document.getElementById('info-moons-wrap').style.display = 'none';
   const exit = document.getElementById('event-exit');
   if (exit) exit.style.display = 'block';
@@ -2002,8 +2026,8 @@ function scanEvents() {
 function showEventCardSummary() {
   const card = document.getElementById('event-card');
   if (!card) return;
-  document.getElementById('ec-name').textContent = '重要天象';
-  document.getElementById('ec-desc').textContent = `已扫描 ${eventMarkers.length} 个天象事件（每种最多 2 个）。点击时间轴上的事件点可在右侧查看详情；时间轴上另有历史天象锚点可直接点击跳转。`;
+  document.getElementById('ec-name').textContent = t('events.title');
+  document.getElementById('ec-desc').textContent = t('events.summary', { count: eventMarkers.length });
   document.getElementById('ec-stats').innerHTML = '';
   const sw = document.getElementById('ec-swatch'); if (sw) sw.style.display = 'none';
   card.classList.remove('hidden');
@@ -2091,7 +2115,7 @@ function updateTimelineUI() {
 // ---------- UI Controllers ----------
 let showInfo, showCometInfo, showDwarfInfo, showMoonDetail, closeInfoPanel;
 let updatePlanetListUI;
-let setSoloPlanet, setSoloSun, clearSoloMode, updateSoloStatus;
+let setSoloPlanet, setSoloSun, setSoloComet, setSoloDwarf, clearSoloMode, updateSoloStatus;
 
 // Smooth camera fly-to. Wall-clock driven (not per-frame) so the duration stays ~constant
 // regardless of FPS — important in real/true scale where the scene is heavy and a frame-count
@@ -2139,6 +2163,28 @@ function flyToSun() {
   const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
   flyTo(offset, new THREE.Vector3(0, 0, 0));
 }
+function flyToComet(ci) {
+  const co = cometObjs[ci];
+  const pos = cometOrbitPos(co.data, state.simDays);
+  const bodyR = state.scaleMode === 'true'
+    ? trueRadiusFromDiameterKm(co.data.realDiameterKm || 10)
+    : co.data.headRadius;
+  const dist = Math.max(bodyR * 8, pos.length() * 0.08);
+  const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
+  flyTo(pos.clone().add(offset), pos);
+}
+
+function flyToDwarf(di) {
+  const dwo = dwarfObjs[di];
+  const pos = cometOrbitPos(dwo.data, state.simDays);
+  const bodyR = state.scaleMode === 'true'
+    ? trueRadiusFromDiameterKm(dwo.data.realDiameterKm)
+    : dwo.data.radius;
+  const dist = Math.max(bodyR * 8, pos.length() * 0.08);
+  const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
+  flyTo(pos.clone().add(offset), pos);
+}
+
 function resetCamera() {
   const farthest = state.scaleMode === 'true'
     ? PLANETS[7].realAU * AU_IN_EARTH_DIAMETERS
@@ -2206,16 +2252,8 @@ const planetList = createPlanetListController({
     } else setSoloPlanet(i);
   },
   onDwarfClick: (i) => {
-    // Reveal the dwarf-planet layer if hidden, then show its info card.
-    if (!state.showDwarfs) {
-      state.showDwarfs = true;
-      controlsController.syncLayerMenu();
-    }
-    state.cometFocusIndex = -1;
-    state.soloIndex = -1;
-    state.focusIndex = -1;
-    showDwarfInfo(i);
-    updatePlanetListUI();
+    // Reveal the dwarf-planet layer if hidden, then solo the dwarf.
+    setSoloDwarf(i);
   },
 });
 ({ updatePlanetListUI } = planetList);
@@ -2228,6 +2266,7 @@ controlsController = createControlsController({
   state,
   planets: PLANETS,
   comets: COMETS,
+  dwarfs: DWARFS,
   j2000: J2000,
   cometOrbitPos,
   THREE,
@@ -2250,12 +2289,51 @@ controlsController = createControlsController({
   flyTo,
   flyToPlanet,
   flyToSun,
+  flyToComet,
+  flyToDwarf,
   showInfo,
   showSunInfo,
+  showCometInfo,
+  showDwarfInfo,
   closeInfoPanel,
   updatePlanetListUI,
 });
-({ setSoloPlanet, setSoloSun, clearSoloMode, updateSoloStatus } = controlsController);
+({ setSoloPlanet, setSoloSun, setSoloComet, setSoloDwarf, clearSoloMode, updateSoloStatus } = controlsController);
+
+function refreshLabels() {
+  for (let i = 0; i < planetObjs.length; i++) planetObjs[i].label.textContent = bodyName(PLANETS[i]);
+  for (let i = 0; i < cometObjs.length; i++) cometObjs[i].label.textContent = bodyName(COMETS[i]);
+  for (let i = 0; i < dwarfObjs.length; i++) dwarfObjs[i].label.textContent = bodyName(DWARFS[i]);
+  for (const bs of brightStarLabels) bs.label.textContent = t(`brightStars.${bs.key}`);
+}
+
+document.getElementById('lang-toggle')?.addEventListener('click', () => {
+  setLang(currentLang() === 'zh-CN' ? 'en' : 'zh-CN');
+});
+
+onLangChange(() => {
+  applyTranslations(document);
+  refreshLabels();
+  updateSoloStatus?.();
+  updateTimelineUI?.();
+  updateScaleBar?.();
+
+  HISTORICAL_EVENTS = getHistoricalEvents();
+
+  const info = document.getElementById('info');
+  if (!info.classList.contains('hidden')) {
+    if (state.soloSun) showSunInfo();
+    else if (state.eventFocus) {
+      if (state.eventFocus.key) showHistoricInfo(state.eventFocus);
+      else showEventInfo(state.eventFocus);
+    } else if (state.focusIndex >= 0) showInfo(state.focusIndex);
+    else if (state.cometFocusIndex >= 0) showCometInfo(state.cometFocusIndex);
+    else if (state.dwarfFocusIndex >= 0) showDwarfInfo(state.dwarfFocusIndex);
+  }
+
+  if (state.showEvents) scanEvents();
+  else renderHistoricalMarkers();
+});
 
 planetList.initPlanetList();
 controlsController.bindControls();
@@ -2276,6 +2354,8 @@ installSelectionHandlers({
   dwarfs: DWARFS,
   setSoloPlanet,
   setSoloSun,
+  setSoloComet,
+  setSoloDwarf,
   clearSoloMode,
   flyToPlanet,
   showInfo,

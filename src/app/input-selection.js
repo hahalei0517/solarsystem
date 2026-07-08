@@ -1,3 +1,6 @@
+import { SUN } from '../data/solar-system.js';
+import { bodyName } from './i18n/bodies.js';
+
 export function installSelectionHandlers({
   canvas,
   window,
@@ -15,6 +18,8 @@ export function installSelectionHandlers({
   dwarfs,
   setSoloPlanet,
   setSoloSun,
+  setSoloComet,
+  setSoloDwarf,
   clearSoloMode,
   flyToPlanet,
   showInfo,
@@ -170,19 +175,22 @@ export function installSelectionHandlers({
     }
     if (obj.userData && typeof obj.userData.cometIdx === 'number') {
       const cidx = obj.userData.cometIdx;
-      // Toggle: clicking the already-focused comet clears the highlight.
-      state.cometFocusIndex = state.cometFocusIndex === cidx ? -1 : cidx;
-      soundApi.comet();
-      showCometInfo(cidx);
+      // Toggle solo mode: clicking the already-soloed comet exits solo.
+      if (state.soloCometIndex === cidx) {
+        clearSoloMode();
+      } else {
+        setSoloComet(cidx);
+      }
       return;
     }
     if (obj.userData && typeof obj.userData.dwarfIdx === 'number') {
       const didx = obj.userData.dwarfIdx;
-      state.cometFocusIndex = -1;
-      state.focusIndex = -1;
-      state.soloIndex = -1;
-      soundApi.uiTick();
-      showDwarfInfo(didx);
+      // Toggle solo mode: clicking the already-soloed dwarf exits solo.
+      if (state.soloDwarfIndex === didx) {
+        clearSoloMode();
+      } else {
+        setSoloDwarf(didx);
+      }
       return;
     }
     // Clicking a planet/moon clears any comet focus.
@@ -217,16 +225,16 @@ export function installSelectionHandlers({
       }
       let label;
       if (obj.userData && obj.userData.isSun) {
-        label = '太阳';
+        label = bodyName(SUN);
       } else if (obj.userData && typeof obj.userData.moonIdx === 'number') {
-        label = planets[obj.userData.planetIdx].moons[obj.userData.moonIdx].name;
+        label = bodyName(planets[obj.userData.planetIdx].moons[obj.userData.moonIdx]);
       } else if (obj.userData && typeof obj.userData.cometIdx === 'number') {
-        label = comets[obj.userData.cometIdx].name;
+        label = bodyName(comets[obj.userData.cometIdx]);
       } else if (obj.userData && typeof obj.userData.dwarfIdx === 'number') {
-        label = dwarfs[obj.userData.dwarfIdx].name;
+        label = bodyName(dwarfs[obj.userData.dwarfIdx]);
       } else {
         const idx = planetObjs.findIndex(po => po.mesh === obj);
-        label = idx >= 0 ? planets[idx].name : '';
+        label = idx >= 0 ? bodyName(planets[idx]) : '';
       }
       tip.textContent = label;
       tip.style.left = (e.clientX + 12) + 'px';

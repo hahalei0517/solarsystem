@@ -1,3 +1,14 @@
+import { t, onLangChange, currentLang } from '../i18n/index.js';
+import {
+  bodyTitle,
+  bodyName,
+  localizedPlanet,
+  localizedComet,
+  localizedDwarf,
+  localizedMoon,
+  localizedStats,
+} from '../i18n/bodies.js';
+
 export function createInfoPanelController({
   document,
   state,
@@ -11,8 +22,8 @@ export function createInfoPanelController({
   updatePlanetListUI,
 }) {
   // Zodiac constellations along the ecliptic (each spans 30° of ecliptic longitude).
-  const ZODIAC = ['白羊座','金牛座','双子座','巨蟹座','狮子座','处女座',
-                  '天秤座','天蝎座','射手座','摩羯座','水瓶座','双鱼座'];
+  const ZODIAC = ['aries','taurus','gemini','cancer','leo','virgo',
+                  'libra','scorpio','sagittarius','capricorn','aquarius','pisces'];
   function zodiacOf(lonDeg) {
     return ZODIAC[Math.floor(((lonDeg % 360) + 360) % 360 / 30)];
   }
@@ -45,11 +56,11 @@ export function createInfoPanelController({
   // is near northern winter solstice; phase 0 here = J2000 → northern winter.
   function northernSeason() {
     const dayOfYear = ((state.simDays % 365.25) + 365.25) % 365.25;
-    if (dayOfYear < 78) return '冬';
-    if (dayOfYear < 171) return '春';
-    if (dayOfYear < 265) return '夏';
-    if (dayOfYear < 355) return '秋';
-    return '冬';
+    if (dayOfYear < 78) return 'winter';
+    if (dayOfYear < 171) return 'spring';
+    if (dayOfYear < 265) return 'summer';
+    if (dayOfYear < 355) return 'autumn';
+    return 'winter';
   }
 
   // Diameter comparison bar: body diameter relative to Earth, log-scaled so the
@@ -58,8 +69,8 @@ export function createInfoPanelController({
     const earth = 12742;
     const ratio = realDiameterKm / earth;
     const pct = Math.min(100, Math.log10(ratio + 1) / Math.log10(11 + 1) * 100);
-    const label = ratio >= 0.1 ? `${ratio.toFixed(ratio >= 1 ? 2 : 3)}× 地球` : '< 0.1× 地球';
-    return `<div class="cmp"><span class="cmp-label">直径对比地球</span>`
+    const label = ratio >= 0.1 ? `${ratio.toFixed(ratio >= 1 ? 2 : 3)}${t('compare.unit')}` : t('compare.less');
+    return `<div class="cmp"><span class="cmp-label">${t('compare.label')}</span>`
       + `<span class="cmp-bar"><span class="cmp-fill" style="width:${pct}%"></span></span>`
       + `<span class="cmp-val">${label}</span></div>`;
   }
@@ -67,7 +78,7 @@ export function createInfoPanelController({
   function fillFact(p) {
     const el = document.getElementById('info-fact');
     if (!el) return;
-    if (p.fact) { el.textContent = '💡 ' + p.fact; el.style.display = 'block'; }
+    if (p.fact) { el.textContent = `${t('label.factPrefix')} ${p.fact}`; el.style.display = 'block'; }
     else el.style.display = 'none';
   }
 
@@ -76,14 +87,18 @@ export function createInfoPanelController({
     if (i < 0) { info.classList.add('hidden'); return; }
     const exitBtn = document.getElementById('event-exit');
     if (exitBtn) exitBtn.style.display = 'none';
+    state.focusIndex = i;
+    state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
     const p = planets[i];
+    const pLoc = localizedPlanet(p);
     info.classList.remove('hidden');
     const swatch = document.getElementById('info-swatch');
     swatch.style.background = '#' + p.color.toString(16).padStart(6,'0');
     swatch.style.color = swatch.style.background;
-    document.getElementById('info-name').textContent = `${p.name} · ${p.en}`;
-    document.getElementById('info-desc').textContent = p.desc;
-    fillFact(p);
+    document.getElementById('info-name').textContent = bodyTitle(p);
+    document.getElementById('info-desc').textContent = pLoc.desc;
+    fillFact(pLoc);
     const dl = document.getElementById('info-stats'); dl.innerHTML = '';
     const eph = ephem[p.en] ? ephemerisAU(p.en, state.simDays) : null;
     if (eph) {
@@ -91,18 +106,18 @@ export function createInfoPanelController({
       const dist = Math.sqrt(x_ecl*x_ecl + y_ecl*y_ecl + eph.y*eph.y);
       let lon = Math.atan2(y_ecl, x_ecl) * 180/Math.PI;
       if (lon < 0) lon += 360;
-      dl.innerHTML += `<dt>📡 当前距日</dt><dd>${dist.toFixed(3)} AU</dd>`
-                    + `<dt>📡 黄经</dt><dd>${lon.toFixed(2)}°</dd>`;
+      dl.innerHTML += `<dt>${t('label.currentDistance')}</dt><dd>${dist.toFixed(3)} AU</dd>`
+                    + `<dt>${t('label.longitude')}</dt><dd>${lon.toFixed(2)}°</dd>`;
     }
     // Dynamic educational metrics
     const prog = orbitProgress(p);
-    if (prog != null) dl.innerHTML += `<dt>🛰️ 公转进度</dt><dd>${prog.toFixed(1)}%</dd>`;
+    if (prog != null) dl.innerHTML += `<dt>${t('label.orbitProgress')}</dt><dd>${prog.toFixed(1)}%</dd>`;
     const ed = earthDistanceAU(p);
-    if (Number.isFinite(ed)) dl.innerHTML += `<dt>🌍 与地球距离</dt><dd>${ed.toFixed(3)} AU</dd>`;
+    if (Number.isFinite(ed)) dl.innerHTML += `<dt>${t('label.earthDistance')}</dt><dd>${ed.toFixed(3)} AU</dd>`;
     const glon = geoLon(p);
-    if (Number.isFinite(glon)) dl.innerHTML += `<dt>🔭 视方向星座</dt><dd>${zodiacOf(glon)}</dd>`;
-    if (p.en === 'Earth') dl.innerHTML += `<dt>🍂 北半球季节</dt><dd>${northernSeason()}季</dd>`;
-    for (const [k,v] of Object.entries(p.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+    if (Number.isFinite(glon)) dl.innerHTML += `<dt>${t('label.zodiac')}</dt><dd>${t(`zodiac.${zodiacOf(glon)}`)}</dd>`;
+    if (p.en === 'Earth') dl.innerHTML += `<dt>${t('label.season')}</dt><dd>${t(`season.${northernSeason()}`)}</dd>`;
+    for (const [k,v] of Object.entries(pLoc.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
     // Diameter comparison bar after the stats list.
     if (dl.parentElement) {
       const bar = document.getElementById('info-compare');
@@ -112,7 +127,7 @@ export function createInfoPanelController({
     const md = document.getElementById('moon-detail');
     if (p.moons.length) {
       mw.style.display = 'block';
-      mr.innerHTML = p.moons.map((m, mi) => {
+      mr.innerHTML = pLoc.moons.map((m, mi) => {
         const cc = '#' + m.color.toString(16).padStart(6,'0');
         return `<span class="moon-pill" data-mi="${mi}"><span class="dot" style="background:${cc};box-shadow:0 0 6px ${cc}"></span>${m.name}</span>`;
       }).join('');
@@ -133,14 +148,18 @@ export function createInfoPanelController({
     return T - since;
   }
   function formatCountdown(days) {
-    if (days == null || !isFinite(days)) return '未知';
-    if (days < 365) return `约 ${Math.round(days)} 天`;
+    if (days == null || !isFinite(days)) return t('countdown.unknown');
+    if (days < 365) return t('countdown.days', { days: Math.round(days) });
     const y = days / 365.25;
-    return `约 ${y.toFixed(1)} 年 (${Math.round(days)} 天)`;
+    return t('countdown.years', { years: y.toFixed(1), days: Math.round(days) });
   }
 
   function showCometInfo(cometIdx=0) {
     const c = comets[cometIdx];
+    state.cometFocusIndex = cometIdx;
+    state.focusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    const cLoc = localizedComet(c);
     const info = document.getElementById('info');
     info.classList.remove('hidden');
     const exitBtn = document.getElementById('event-exit');
@@ -149,20 +168,20 @@ export function createInfoPanelController({
     const cc = '#' + c.color.toString(16).padStart(6,'0');
     swatch.style.background = cc;
     swatch.style.color = cc;
-    document.getElementById('info-name').textContent = `${c.name} · ${c.en}`;
-    document.getElementById('info-desc').textContent = c.desc;
-    fillFact(c);
+    document.getElementById('info-name').textContent = bodyTitle(c);
+    document.getElementById('info-desc').textContent = cLoc.desc;
+    fillFact(cLoc);
     const dl = document.getElementById('info-stats');
     dl.innerHTML = '';
     const pos = cometOrbitPos(c, state.simDays);
-    dl.innerHTML += `<dt>📡 当前距日</dt><dd>${pos.length().toFixed(3)} AU</dd>`;
+    dl.innerHTML += `<dt>${t('label.currentDistance')}</dt><dd>${pos.length().toFixed(3)} AU</dd>`;
     const dNext = daysToNextPerihelion(c);
-    if (dNext != null) dl.innerHTML += `<dt>⏳ 距下次近日点</dt><dd>${formatCountdown(dNext)}</dd>`;
-    const showers = cometShowers[c.en];
+    if (dNext != null) dl.innerHTML += `<dt>${t('label.nextPerihelion')}</dt><dd>${formatCountdown(dNext)}</dd>`;
+    const showers = cLoc.showers || cometShowers[c.en];
     if (showers && showers.length) {
-      dl.innerHTML += `<dt>☄️ 关联流星雨</dt><dd>${showers.map(s => `${s.name} (${s.month})`).join('、')}</dd>`;
+      dl.innerHTML += `<dt>${t('label.showers')}</dt><dd>${showers.map(s => `${s.name} (${s.month})`).join('、')}</dd>`;
     }
-    if (c.stats) for (const [k,v] of Object.entries(c.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+    for (const [k,v] of Object.entries(cLoc.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
     const bar = document.getElementById('info-compare');
     if (bar) bar.innerHTML = '';
     document.getElementById('info-moons-wrap').style.display = 'none';
@@ -170,6 +189,10 @@ export function createInfoPanelController({
 
   function showDwarfInfo(dwarfIdx=0) {
     const d = dwarfs[dwarfIdx];
+    state.dwarfFocusIndex = dwarfIdx;
+    state.focusIndex = -1;
+    state.cometFocusIndex = -1;
+    const dLoc = localizedDwarf(d);
     const info = document.getElementById('info');
     info.classList.remove('hidden');
     const exitBtn = document.getElementById('event-exit');
@@ -178,16 +201,16 @@ export function createInfoPanelController({
     const cc = '#' + d.color.toString(16).padStart(6,'0');
     swatch.style.background = cc;
     swatch.style.color = cc;
-    document.getElementById('info-name').textContent = `${d.name} · ${d.en}`;
-    document.getElementById('info-desc').textContent = d.desc;
-    fillFact(d);
+    document.getElementById('info-name').textContent = bodyTitle(d);
+    document.getElementById('info-desc').textContent = dLoc.desc;
+    fillFact(dLoc);
     const dl = document.getElementById('info-stats');
     dl.innerHTML = '';
     const pos = cometOrbitPos(d, state.simDays);
-    dl.innerHTML += `<dt>📡 当前距日</dt><dd>${pos.length().toFixed(3)} AU</dd>`;
+    dl.innerHTML += `<dt>${t('label.currentDistance')}</dt><dd>${pos.length().toFixed(3)} AU</dd>`;
     const dNext = daysToNextPerihelion(d);
-    if (dNext != null) dl.innerHTML += `<dt>⏳ 距下次近日点</dt><dd>${formatCountdown(dNext)}</dd>`;
-    if (d.stats) for (const [k,v] of Object.entries(d.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+    if (dNext != null) dl.innerHTML += `<dt>${t('label.nextPerihelion')}</dt><dd>${formatCountdown(dNext)}</dd>`;
+    for (const [k,v] of Object.entries(dLoc.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
     const bar = document.getElementById('info-compare');
     if (bar) bar.innerHTML = diameterBar(d.realDiameterKm);
     document.getElementById('info-moons-wrap').style.display = 'none';
@@ -200,7 +223,7 @@ export function createInfoPanelController({
       updatePlanetListUI();
     }
     const p = planets[planetIdx];
-    const m = p.moons[moonIdx];
+    const m = localizedMoon(p.moons[moonIdx]);
     if (!m) return;
     const mr = document.getElementById('info-moons');
     const md = document.getElementById('moon-detail');
@@ -221,11 +244,18 @@ export function createInfoPanelController({
     const info = document.getElementById('info');
     info.classList.add('hidden');
     state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
     if (state.soloIndex === -1) {
       state.focusIndex = -1;
       updatePlanetListUI();
     }
   }
+
+  onLangChange(() => {
+    if (state.focusIndex >= 0) showInfo(state.focusIndex);
+    else if (state.cometFocusIndex >= 0) showCometInfo(state.cometFocusIndex);
+    else if (state.dwarfFocusIndex >= 0) showDwarfInfo(state.dwarfFocusIndex);
+  });
 
   return { showInfo, showCometInfo, showDwarfInfo, showMoonDetail, closeInfoPanel };
 }

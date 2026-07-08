@@ -32,19 +32,19 @@ describe('sky event helpers', () => {
       expect(event).toEqual(expect.objectContaining({
         days: expect.any(Number),
         label: expect.any(String),
-        type: expect.any(String),
+        typeCode: expect.any(String),
         bodyA: expect.any(Number),
         bodyB: expect.any(Number),
         angle: expect.any(Number),
         score: expect.any(Number),
       }));
-      counts.set(event.type, (counts.get(event.type) || 0) + 1);
+      counts.set(event.typeCode, (counts.get(event.typeCode) || 0) + 1);
     }
     for (const count of counts.values()) expect(count).toBeLessThanOrEqual(2);
   });
 
   it('describes transit events with geometry and approximation context', () => {
-    const text = describeSkyEvent({ type: '凌日', bodyA: 0, angle: 0.12 }, PLANETS);
+    const text = describeSkyEvent({ typeCode: 'transit', bodyA: 0, angle: 0.12 }, PLANETS);
     expect(text).toContain('地球与太阳之间');
     expect(text).toContain('太阳盘面');
     expect(text).toContain('0.12°');
@@ -52,7 +52,7 @@ describe('sky event helpers', () => {
   });
 
   it('describes conjunction events as poor observing targets near the Sun', () => {
-    const text = describeSkyEvent({ type: '合日', bodyA: 1, angle: 0.55 }, PLANETS);
+    const text = describeSkyEvent({ typeCode: 'conjunction', subType: 'inferior', bodyA: 1, angle: 0.55 }, PLANETS);
     expect(text).toContain('太阳');
     expect(text).toContain('眩光');
     expect(text).toContain('不适合观测');
@@ -60,7 +60,7 @@ describe('sky event helpers', () => {
   });
 
   it('describes opposition events as favorable outer-planet observing geometry', () => {
-    const text = describeSkyEvent({ type: '冲日', bodyA: 3, angle: 179.3 }, PLANETS);
+    const text = describeSkyEvent({ typeCode: 'opposition', bodyA: 3, angle: 179.3 }, PLANETS);
     expect(text).toContain('太阳');
     expect(text).toContain('相对');
     expect(text).toContain('整夜可见');
@@ -68,14 +68,14 @@ describe('sky event helpers', () => {
   });
 
   it('describes greatest-elongation events with observing timing', () => {
-    const text = describeSkyEvent({ type: '东大距', bodyA: 0, angle: 26.4 }, PLANETS);
+    const text = describeSkyEvent({ typeCode: 'elongation', subType: 'east', bodyA: 0, angle: 26.4 }, PLANETS);
     expect(text).toContain('东大距');
     expect(text).toContain('昏星');
     expect(text).toContain('26.4°');
   });
 
   it('describes planet–planet conjunctions naming both bodies', () => {
-    const text = describeSkyEvent({ type: '合行星', bodyA: 4, bodyB: 5, angle: 0.12 }, PLANETS);
+    const text = describeSkyEvent({ typeCode: 'planetConjunction', bodyA: 4, bodyB: 5, angle: 0.12 }, PLANETS);
     expect(text).toContain(PLANETS[4].name);
     expect(text).toContain(PLANETS[5].name);
     expect(text).toContain('相合');

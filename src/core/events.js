@@ -1,4 +1,6 @@
 import { ephemerisCoordsAU } from './orbits.js';
+import { t } from '../app/i18n/index.js';
+import { bodyName } from '../app/i18n/bodies.js';
 
 function normalize(v) {
   const len = Math.hypot(v.x, v.y, v.z);
@@ -99,6 +101,13 @@ export function refineMaximum(fn, center, span = 8) {
   return { t: bestT, v: bestV };
 }
 
+const TRANSIT = 'transit';
+const CONJUNCTION = 'conjunction';
+const OPPOSITION = 'opposition';
+const ELONGATION = 'elongation';
+const QUADRATURE = 'quadrature';
+const PLANET_CONJUNCTION = 'planetConjunction';
+
 export function scanSkyEvents({ min, max, planets, ephem }) {
   const found = [];
   const step = 5;
@@ -117,15 +126,17 @@ export function scanSkyEvents({ min, max, planets, ephem }) {
         // 凌日 (transit) requires inferior conjunction AND elongation below the Sun's angular
         // radius (~0.267°). A superior conjunction also drives elongation → 0, but the planet is
         // then behind the Sun — that is a 上合日, never a transit.
-        if (inferior && r.v < 0.27) found.push({ days: r.t, label: `${p.name}凌日`, type: '凌日', bodyA: idx, bodyB: 2, angle: r.v, score: 100 - r.v * 80 });
-        else if (r.v < 0.9) found.push({ days: r.t, label: `${p.name}${inferior ? '下合日' : '上合日'}`, type: '合日', bodyA: idx, bodyB: 2, angle: r.v, score: 72 - r.v * 12 });
+        if (inferior && r.v < 0.27) {
+          found.push(makeEvent({ typeCode: TRANSIT, bodyA: idx, bodyB: 2, days: r.t, angle: r.v, score: 100 - r.v * 80, planets }));
+        } else if (r.v < 0.9) {
+          found.push(makeEvent({ typeCode: CONJUNCTION, subType: inferior ? 'inferior' : 'superior', bodyA: idx, bodyB: 2, days: r.t, angle: r.v, score: 72 - r.v * 12, planets }));
+        }
       }
       if (cur > prev && cur > next) {
         const r = refineMaximum(el, t - step);
         if (r.v > 10) {
           const side = elongationSide(p.en, r.t, ephem);
-          const type = side === 'east' ? '东大距' : '西大距';
-          found.push({ days: r.t, label: `${p.name}${type}`, type, bodyA: idx, bodyB: 2, angle: r.v, score: 50 + r.v });
+          found.push(makeEvent({ typeCode: ELONGATION, subType: side, bodyA: idx, bodyB: 2, days: r.t, angle: r.v, score: 50 + r.v, planets }));
         }
       }
       prev = cur;
@@ -150,8 +161,7 @@ export function scanSkyEvents({ min, max, planets, ephem }) {
         const r = refineMinimum((d) => Math.abs(el(d) - 90), t - step);
         if (Math.abs(r.v) < 4) {
           const side = elongationSide(p.en, r.t, ephem);
-          const type = side === 'east' ? '东方照' : '西方照';
-          found.push({ days: r.t, label: `${p.name}${type}`, type: '方照', bodyA: idx, bodyB: 2, angle: 90 + r.v, score: 30 + idx });
+          found.push(makeEvent({ typeCode: QUADRATURE, subType: side, bodyA: idx, bodyB: 2, days: r.t, angle: 90 + r.v, score: 30 + idx, planets }));
         }
       }
       prevDev = curDev;
@@ -164,7 +174,7 @@ export function scanSkyEvents({ min, max, planets, ephem }) {
       const next = el(t);
       if (cur2 > prev2 && cur2 > next) {
         const r = refineMaximum(el, t - step);
-        if (r.v > 178) found.push({ days: r.t, label: `${p.name}冲日`, type: '冲日', bodyA: idx, bodyB: 2, angle: r.v, score: 40 + (r.v - 178) * 18 + idx * 2 });
+        if (r.v > 178) found.push(makeEvent({ typeCode: OPPOSITION, bodyA: idx, bodyB: 2, days: r.t, angle: r.v, score: 40 + (r.v - 178) * 18 + idx * 2, planets }));
       }
       prev2 = cur2;
       cur2 = next;
@@ -183,7 +193,7 @@ export function scanSkyEvents({ min, max, planets, ephem }) {
         if (cur < prev && cur < next) {
           const r = refineMinimum(sep, t - step);
           if (r.v < 2.0) {
-            found.push({ days: r.t, label: `${a.name}合${b.name}`, type: '合行星', bodyA: i, bodyB: j, angle: r.v, score: 80 - r.v * 20 });
+            found.push(makeEvent({ typeCode: PLANET_CONJUNCTION, bodyA: i, bodyB: j, days: r.t, angle: r.v, score: 80 - r.v * 20, planets }));
           }
         }
         prev = cur;
@@ -200,8 +210,8 @@ export function scanSkyEvents({ min, max, planets, ephem }) {
 
   const byType = new Map();
   for (const ev of deduped) {
-    if (!byType.has(ev.type)) byType.set(ev.type, []);
-    byType.get(ev.type).push(ev);
+    if (!byType.has(ev.typeCode)) byType.set(ev.typeCode, []);
+    byType.get(ev.typeCode).push(ev);
   }
 
   return Array.from(byType.values())
@@ -209,47 +219,45 @@ export function scanSkyEvents({ min, max, planets, ephem }) {
     .sort((a, b) => a.days - b.days);
 }
 
-export function getEventColor(type) {
-  switch (type) {
-    case '凌日': return 0xff7777;
-    case '冲日': return 0x66ff99;
-    case '合日': return 0xffd966;
-    case '东大距': return 0x66ccff;
-    case '西大距': return 0x99aaff;
-    case '方照': return 0xc08aff;
-    case '合行星': return 0xff99cc;
+function eventKey(typeCode, subType) {
+  return subType ? `${typeCode}.${subType}` : typeCode;
+}
+
+function makeEvent({ typeCode, subType, bodyA, bodyB, days, angle, score, planets }) {
+  const a = planets[bodyA];
+  const b = planets[bodyB];
+  const key = eventKey(typeCode, subType);
+  const label = typeCode === PLANET_CONJUNCTION
+    ? t(`event.label.${typeCode}`, { a: bodyName(a), b: bodyName(b) })
+    : t(`event.label.${key}`, { name: bodyName(a) });
+  const typeLabel = t(`event.type.${key}`);
+  const effect = t(`event.effect.${key}`);
+  const desc = typeCode === PLANET_CONJUNCTION
+    ? t(`event.desc.${typeCode}`, { a: bodyName(a), b: bodyName(b), angle: angle.toFixed(2) })
+    : t(`event.desc.${key}`, { name: bodyName(a), angle: angle.toFixed(typeCode === OPPOSITION || typeCode === QUADRATURE || typeCode === ELONGATION ? 1 : 2) });
+  return { days, label, typeLabel, effect, desc, typeCode, subType, bodyA, bodyB, angle, score };
+}
+
+export function getEventColor(typeCode) {
+  switch (typeCode) {
+    case TRANSIT: return 0xff7777;
+    case OPPOSITION: return 0x66ff99;
+    case CONJUNCTION: return 0xffd966;
+    case ELONGATION: return 0x66ccff;
+    case QUADRATURE: return 0xc08aff;
+    case PLANET_CONJUNCTION: return 0xff99cc;
     default: return 0xffd966;
   }
 }
 
 export function describeSkyEvent(ev, planets) {
-  const p = planets[ev.bodyA];
-
-  if (ev.type === '凌日') {
-    return `地球视角下，${p.name}位于地球与太阳之间附近，几乎从太阳盘面前方经过，角距约 ${ev.angle.toFixed(2)}°。本模型用近似星历和放大的可视标记提示几何关系，真实凌日还取决于太阳视直径、轨道倾角和观测条件。`;
+  // Prefer pre-computed localized description if present; fall back to re-computing.
+  if (ev.desc) return ev.desc;
+  const key = eventKey(ev.typeCode, ev.subType);
+  const name = bodyName(planets[ev.bodyA]);
+  if (ev.typeCode === PLANET_CONJUNCTION) {
+    const bName = bodyName(planets[ev.bodyB]);
+    return t(`event.desc.${key}`, { a: name, b: bName, angle: ev.angle.toFixed(2) });
   }
-
-  if (ev.type === '合日') {
-    let where;
-    if (ev.label && ev.label.includes('上合')) where = '位于太阳远侧（上合日）';
-    else if (ev.label && ev.label.includes('下合')) where = '位于地球与太阳之间（下合日）';
-    else where = '与太阳在天空中方向几乎同向';
-    return `${p.name}${where}，角距约 ${ev.angle.toFixed(2)}°，此时通常淹没在太阳眩光中，不适合观测；本模型只标出地球视角的近似同向关系。`;
-  }
-
-  if (ev.type === '东大距' || ev.type === '西大距') {
-    const when = ev.type === '东大距' ? '日落后西边天空（昏星）' : '日出前东边天空（晨星）';
-    return `${p.name}到达${ev.type}，与太阳角距约 ${ev.angle.toFixed(1)}°，是内行星离太阳视距最大的时刻，此时${when}观测条件较佳。`;
-  }
-
-  if (ev.type === '方照') {
-    return `${p.name}与太阳角距约 90°（${ev.label.includes('东') ? '东方照' : '西方照'}），此时它相对太阳成直角，是观察外行星相位与阴影的好时机，${ev.label.includes('东') ? '日落后位于南方高位' : '日出前位于南方高位'}。`;
-  }
-
-  if (ev.type === '合行星') {
-    const q = planets[ev.bodyB];
-    return `${p.name}与${q.name}在天空中非常接近，角距约 ${ev.angle.toFixed(2)}°。行星相合是较罕见的天象，两颗行星在视线方向上靠近，但实际空间距离仍可能很远。`;
-  }
-
-  return `${p.name}与太阳在天空中接近相对，角距约 ${ev.angle.toFixed(1)}°。外行星冲日前后通常日落时升起、接近整夜可见，也往往更接近地球；实际亮度和可见性仍受距离、地平高度和天气影响。`;
+  return t(`event.desc.${key}`, { name, angle: ev.angle.toFixed(ev.typeCode === OPPOSITION || ev.typeCode === QUADRATURE || ev.typeCode === ELONGATION ? 1 : 2) });
 }

@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('solar-system-lang', 'zh-CN');
+  });
+});
+
 function collectPageErrors(page) {
   const pageErrors = [];
   const consoleErrors = [];

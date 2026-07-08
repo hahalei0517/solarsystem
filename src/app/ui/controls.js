@@ -1,4 +1,6 @@
-import { SPEED_MODES } from '../../data/solar-system.js';
+import { SPEED_MODES, SUN } from '../../data/solar-system.js';
+import { t, onLangChange } from '../i18n/index.js';
+import { bodyName } from '../i18n/bodies.js';
 
 export function createControlsController({
   document,
@@ -6,6 +8,7 @@ export function createControlsController({
   state,
   planets,
   comets,
+  dwarfs,
   j2000,
   cometOrbitPos,
   THREE,
@@ -25,8 +28,12 @@ export function createControlsController({
   flyTo,
   flyToPlanet,
   flyToSun,
+  flyToComet,
+  flyToDwarf,
   showInfo,
   showSunInfo,
+  showCometInfo,
+  showDwarfInfo,
   closeInfoPanel,
   updatePlanetListUI,
   setRenderQuality,
@@ -109,20 +116,26 @@ export function createControlsController({
     const chip = document.getElementById('solo-status');
     const soloBtn = document.getElementById('solo-btn');
     if (!chip) return;
+    let label, active;
     if (state.soloSun) {
-      chip.textContent = '独显：太阳';
-      chip.classList.add('active');
-      if (soloBtn) soloBtn.classList.add('on');
+      label = t('solo.sun', { name: bodyName(SUN) });
+      active = true;
     } else if (state.soloIndex >= 0) {
-      const p = planets[state.soloIndex];
-      chip.textContent = `独显：${p.name}`;
-      chip.classList.add('active');
-      if (soloBtn) soloBtn.classList.add('on');
+      label = t('solo.planet', { name: bodyName(planets[state.soloIndex]) });
+      active = true;
+    } else if (state.soloCometIndex >= 0) {
+      label = t('solo.comet', { name: bodyName(comets[state.soloCometIndex]) });
+      active = true;
+    } else if (state.soloDwarfIndex >= 0) {
+      label = t('solo.dwarf', { name: bodyName(dwarfs[state.soloDwarfIndex]) });
+      active = true;
     } else {
-      chip.textContent = '全景';
-      chip.classList.remove('active');
-      if (soloBtn) soloBtn.classList.remove('on');
+      label = t('action.panorama');
+      active = false;
     }
+    chip.textContent = label;
+    chip.classList.toggle('active', active);
+    if (soloBtn) soloBtn.classList.toggle('on', active);
   }
 
   function clearSoloMode() {
@@ -130,6 +143,9 @@ export function createControlsController({
     state.soloIndex = -1;
     state.focusIndex = -1;
     state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    state.soloCometIndex = -1;
+    state.soloDwarfIndex = -1;
     showInfo(-1);
     updatePlanetListUI();
     updateSoloStatus();
@@ -140,6 +156,10 @@ export function createControlsController({
     state.soloSun = false;
     state.soloIndex = index;
     state.focusIndex = index;
+    state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    state.soloCometIndex = -1;
+    state.soloDwarfIndex = -1;
     soundApi.select(index);
     flyToPlanet(index);
     showInfo(index);
@@ -153,9 +173,50 @@ export function createControlsController({
     state.soloIndex = -1;
     state.focusIndex = -1;
     state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    state.soloCometIndex = -1;
+    state.soloDwarfIndex = -1;
     soundApi.uiTick();
     flyToSun();
     showSunInfo();
+    updatePlanetListUI();
+    updateSoloStatus();
+  }
+
+  function setSoloComet(index) {
+    state.soloSun = false;
+    state.soloIndex = -1;
+    state.focusIndex = -1;
+    state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    state.soloDwarfIndex = -1;
+    state.soloCometIndex = index;
+    if (!state.showComets) {
+      state.showComets = true;
+      syncLayerMenu();
+    }
+    soundApi.comet();
+    flyToComet(index);
+    showCometInfo(index);
+    updatePlanetListUI();
+    updateSoloStatus();
+  }
+
+  function setSoloDwarf(index) {
+    state.soloSun = false;
+    state.soloIndex = -1;
+    state.focusIndex = -1;
+    state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    state.soloCometIndex = -1;
+    state.soloDwarfIndex = index;
+    if (!state.showDwarfs) {
+      state.showDwarfs = true;
+      syncLayerMenu();
+    }
+    soundApi.uiTick();
+    flyToDwarf(index);
+    showDwarfInfo(index);
     updatePlanetListUI();
     updateSoloStatus();
   }
@@ -423,12 +484,19 @@ export function createControlsController({
     updateSoloStatus();
   }
 
+  onLangChange(() => {
+    updateSoloStatus();
+    for (const m of mselects) m.sync();
+  });
+
   return {
     bindControls,
     updateSoloStatus,
     clearSoloMode,
     setSoloPlanet,
     setSoloSun,
+    setSoloComet,
+    setSoloDwarf,
     closeHelpPanel,
     toggleHelpPanel,
     syncLayerMenu,
