@@ -933,12 +933,21 @@ function buildComet(c, idx) {
   orbitLine.visible = false;
   scene.add(orbitLine);
 
+  // True-scale locatability marker (child of group → follows comet)
+  const marker = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: ringMarkerTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+  }));
+  marker.scale.set(1, 1, 1);
+  marker.visible = false;
+  marker.userData = { cometIdx: idx, isMarker: true };
+  group.add(marker);
+
   const lab = document.createElement('div');
   lab.className = 'pl-label';
   lab.textContent = bodyName(c);
   document.getElementById('planet-labels').appendChild(lab);
 
-  return { group, head, tail, dustTail, coma, orbitLine, label: lab, data: c };
+  return { group, head, tail, dustTail, coma, orbitLine, marker, label: lab, data: c };
 }
 
 // Thin atmospheric halo via a BackSide shell with a Fresnel-like rim glow.
@@ -1241,6 +1250,7 @@ function buildPlanet(p, idx) {
   }));
   marker.scale.set(1, 1, 1);
   marker.visible = false;
+  marker.userData = { planetIdx: idx, isMarker: true };
   group.add(marker);
 
   return {
@@ -1306,12 +1316,21 @@ function buildDwarf(d, idx) {
   orbitLine.visible = false;
   scene.add(orbitLine);
 
+  // True-scale locatability marker (child of group → follows dwarf)
+  const marker = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: ringMarkerTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+  }));
+  marker.scale.set(1, 1, 1);
+  marker.visible = false;
+  marker.userData = { dwarfIdx: idx, isMarker: true };
+  group.add(marker);
+
   const lab = document.createElement('div');
   lab.className = 'pl-label';
   lab.textContent = bodyName(d);
   document.getElementById('planet-labels').appendChild(lab);
 
-  return { group, mesh, orbitLine, label: lab, data: d };
+  return { group, mesh, orbitLine, marker, label: lab, data: d };
 }
 for (let i = 0; i < DWARFS.length; i++) {
   dwarfObjs.push(buildDwarf(DWARFS[i], i));
@@ -1662,6 +1681,21 @@ function tick() {
 
     const pos = cometOrbitPos(c, state.simDays);
     co.group.position.copy(pos);
+
+    // True-scale locatability marker: fixed apparent size regardless of distance.
+    // Undo the group's own scale (comet groups are pre-scaled by headRadius/0.07) so
+    // the marker's world-space size follows the same k*distance rule as the planets'.
+    if (state.scaleMode === 'true') {
+      const camDist = camera.position.distanceTo(pos);
+      const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
+      const groupS = co.group.scale.x || 1;
+      const s = Math.max(1, camDist * k) / groupS;
+      co.marker.scale.set(s, s, 1);
+      co.marker.visible = true;
+    } else {
+      co.marker.visible = false;
+    }
+
     const sunDir = pos.clone().normalize();   // unit vector Sun→comet = anti-sunward direction
     const dist = pos.length();
     const tailLen = Math.min(0.42, Math.max(0.04, 0.16 / Math.max(0.35, dist)));
@@ -1719,6 +1753,18 @@ function tick() {
     if (!visible) continue;
     const pos = cometOrbitPos(dwo.data, state.simDays);
     dwo.group.position.copy(pos);
+
+    // True-scale locatability marker: fixed apparent size regardless of distance.
+    if (state.scaleMode === 'true') {
+      const camDist = camera.position.distanceTo(pos);
+      const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
+      const s = Math.max(1, camDist * k);
+      dwo.marker.scale.set(s, s, 1);
+      dwo.marker.visible = true;
+    } else {
+      dwo.marker.visible = false;
+    }
+
     if (spin) dwo.mesh.rotation.y += dt * 0.05;
     if (state.showLabels && (state.soloDwarfIndex === -1 || state.soloDwarfIndex === di)) {
       const tmp = pos.clone().project(camera);

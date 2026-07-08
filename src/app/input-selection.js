@@ -38,17 +38,27 @@ export function installSelectionHandlers({
   function clickableMeshes() {
     const list = [];
     list.push(sunMesh);
+    // In true-scale mode the bodies are sub-pixel, so the fixed-size ring markers become the
+    // real click targets. They are only raycastable while visible (i.e. true-scale mode).
+    const trueScale = state.scaleMode === 'true';
     if (!state.soloSun) {
       for (let i = 0; i < planetObjs.length; i++) {
         const po = planetObjs[i];
         if (!state.visible.has(i)) continue;
         if (state.soloIndex !== -1 && state.soloIndex !== i) continue;
         list.push(po.mesh);
+        if (trueScale && po.marker && po.marker.visible) list.push(po.marker);
         for (const m of po.moons) if (m.mesh.visible) list.push(m.mesh);
       }
     }
-    if (state.showComets) for (const co of cometObjs) if (co.group.visible) list.push(co.head);
-    if (state.showDwarfs) for (const dwo of dwarfObjs) if (dwo.group.visible) list.push(dwo.mesh);
+    if (state.showComets) for (const co of cometObjs) if (co.group.visible) {
+      list.push(co.head);
+      if (trueScale && co.marker && co.marker.visible) list.push(co.marker);
+    }
+    if (state.showDwarfs) for (const dwo of dwarfObjs) if (dwo.group.visible) {
+      list.push(dwo.mesh);
+      if (trueScale && dwo.marker && dwo.marker.visible) list.push(dwo.marker);
+    }
     return list;
   }
 
@@ -195,7 +205,12 @@ export function installSelectionHandlers({
     }
     // Clicking a planet/moon clears any comet focus.
     state.cometFocusIndex = -1;
-    const idx = planetObjs.findIndex(po => po.mesh === obj);
+    let idx = -1;
+    if (obj.userData && obj.userData.isMarker && typeof obj.userData.planetIdx === 'number') {
+      idx = obj.userData.planetIdx;
+    } else {
+      idx = planetObjs.findIndex(po => po.mesh === obj);
+    }
     if (idx >= 0) {
       // Mobile: tap the already-soloed planet again to exit solo (the top-bar solo buttons are
       // hidden on mobile, so tapping the same planet is the way out). Desktop keeps the buttons
@@ -220,7 +235,9 @@ export function installSelectionHandlers({
       const obj = hits[0].object;
       if (obj !== hoveredObj) {
         hoveredObj = obj;
-        const idx = planetObjs.findIndex(po => po.mesh === obj);
+        const idx = (obj.userData && obj.userData.isMarker && typeof obj.userData.planetIdx === 'number')
+          ? obj.userData.planetIdx
+          : planetObjs.findIndex(po => po.mesh === obj);
         if (idx >= 0) soundApi.hover(idx); // tuned blip only for planets
       }
       let label;
@@ -232,6 +249,8 @@ export function installSelectionHandlers({
         label = bodyName(comets[obj.userData.cometIdx]);
       } else if (obj.userData && typeof obj.userData.dwarfIdx === 'number') {
         label = bodyName(dwarfs[obj.userData.dwarfIdx]);
+      } else if (obj.userData && obj.userData.isMarker && typeof obj.userData.planetIdx === 'number') {
+        label = bodyName(planets[obj.userData.planetIdx]);
       } else {
         const idx = planetObjs.findIndex(po => po.mesh === obj);
         label = idx >= 0 ? bodyName(planets[idx]) : '';
