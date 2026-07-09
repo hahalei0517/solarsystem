@@ -70,6 +70,11 @@ test('app boots and primary interactions work', async ({ page }) => {
   await expect(page.locator('#layer-dwarfs')).toBeChecked();
   await page.locator('#layer-dwarfs').click();
   await expect(page.locator('#layer-dwarfs')).not.toBeChecked();
+  // Oort cloud layer: toggle on/off without errors.
+  await page.locator('#layer-oort').evaluate(el => { el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await expect(page.locator('#layer-oort')).toBeChecked();
+  await page.locator('#layer-oort').evaluate(el => { el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await expect(page.locator('#layer-oort')).not.toBeChecked();
   // Scale bar is visible and shows a length label.
   await expect(page.locator('#scale-bar')).toBeVisible();
   await expect(page.locator('#scale-label')).not.toHaveText('');

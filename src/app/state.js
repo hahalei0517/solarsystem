@@ -10,6 +10,7 @@ export function createSimulationState({ renderQuality = 'quality' } = {}) {
     showLabels: true,
     showTrails: true,
     showBelts: true,
+    showOortCloud: false,
     showComets: false,
     showDwarfs: false,
     showSpacecraft: false,

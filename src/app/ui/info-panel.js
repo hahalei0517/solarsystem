@@ -78,6 +78,12 @@ export function createInfoPanelController({
       + `<span class="cmp-val">${label}</span></div>`;
   }
 
+  function classificationBadge(body) {
+    if (!body.classification) return '';
+    const label = t(`class.${body.classification}`);
+    return `<div class="class-badge class-${body.classification}">${label}</div>`;
+  }
+
   function fillFact(p) {
     const el = document.getElementById('info-fact');
     if (!el) return;
@@ -100,9 +106,20 @@ export function createInfoPanelController({
     swatch.style.background = '#' + p.color.toString(16).padStart(6,'0');
     swatch.style.color = swatch.style.background;
     document.getElementById('info-name').textContent = bodyTitle(p);
-    document.getElementById('info-desc').textContent = pLoc.desc;
+    document.getElementById('info-desc').innerHTML = classificationBadge(p) + `<span>${pLoc.desc}</span>`;
     fillFact(pLoc);
     const dl = document.getElementById('info-stats'); dl.innerHTML = '';
+    // Educational static properties (classification is in the badge above; render numeric).
+    if (Number.isFinite(p.massEarth) && p.en !== 'Earth') {
+      const factor = p.massEarth >= 1 ? p.massEarth.toFixed(2) : p.massEarth.toFixed(3);
+      dl.innerHTML += `<dt>${t('label.mass')}</dt><dd>${factor} × ${t('compare.less').includes('Earth') ? 'Earth' : '地球'}</dd>`;
+    }
+    if (Number.isFinite(p.gravity)) {
+      dl.innerHTML += `<dt>${t('label.gravity')}</dt><dd>${p.gravity.toFixed(2)} m/s²</dd>`;
+    }
+    if (p.surfaceTemp) {
+      dl.innerHTML += `<dt>${t('label.surfaceTemp')}</dt><dd>${p.surfaceTemp}</dd>`;
+    }
     const eph = ephem[p.en] ? ephemerisAU(p.en, state.simDays) : null;
     if (eph) {
       const x_ecl = eph.x, y_ecl = -eph.z;
@@ -205,10 +222,16 @@ export function createInfoPanelController({
     swatch.style.background = cc;
     swatch.style.color = cc;
     document.getElementById('info-name').textContent = bodyTitle(d);
-    document.getElementById('info-desc').textContent = dLoc.desc;
+    document.getElementById('info-desc').innerHTML = classificationBadge(d) + `<span>${dLoc.desc}</span>`;
     fillFact(dLoc);
     const dl = document.getElementById('info-stats');
     dl.innerHTML = '';
+    if (Number.isFinite(d.gravity)) {
+      dl.innerHTML += `<dt>${t('label.gravity')}</dt><dd>${d.gravity.toFixed(2)} m/s²</dd>`;
+    }
+    if (d.surfaceTemp) {
+      dl.innerHTML += `<dt>${t('label.surfaceTemp')}</dt><dd>${d.surfaceTemp}</dd>`;
+    }
     const pos = cometOrbitPos(d, state.simDays);
     dl.innerHTML += `<dt>${t('label.currentDistance')}</dt><dd>${pos.length().toFixed(3)} AU</dd>`;
     const dNext = daysToNextPerihelion(d);

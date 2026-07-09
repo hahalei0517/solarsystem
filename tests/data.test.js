@@ -53,6 +53,19 @@ describe('solar-system data', () => {
     }
   });
 
+  it('classifies every planet and dwarf planet', () => {
+    const validClasses = new Set(['terrestrial', 'gasGiant', 'iceGiant', 'dwarf']);
+    for (const p of PLANETS) {
+      expect(p.classification).toEqual(expect.any(String));
+      expect(validClasses.has(p.classification)).toBe(true);
+      expect(typeof p.gravity).toBe('number');
+      expect(p.gravity).toBeGreaterThan(0);
+    }
+    for (const d of DWARFS) {
+      expect(d.classification).toBe('dwarf');
+    }
+  });
+
   it('defines dwarf planets with comet-style orbital elements', () => {
     expect(DWARFS.length).toBeGreaterThanOrEqual(3);
     expect(DWARFS.map((d) => d.en)).toEqual(

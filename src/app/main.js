@@ -57,6 +57,8 @@ const QUALITY_PRESETS = {
     starDrawCount: 4000,
     asteroidDrawCount: 800,
     kuiperDrawCount: 500,
+    oortDrawCount: 1200,
+    galacticDustDrawCount: 350,
   },
   performance: {
     maxPixelRatio: 1,
@@ -64,6 +66,8 @@ const QUALITY_PRESETS = {
     starDrawCount: 1500,
     asteroidDrawCount: 250,
     kuiperDrawCount: 150,
+    oortDrawCount: 400,
+    galacticDustDrawCount: 120,
   },
 };
 
@@ -295,12 +299,15 @@ composer.setPixelRatio(renderPixelRatio());
 composer.setSize(window.innerWidth, window.innerHeight);
 const renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
-// strength, radius, threshold — tuned so only the sun + bright planets glow
+// strength, radius, threshold — bloom the Sun/corona and other pure-bright emitters, but
+// leave the star background alone. Threshold is raised so that dim spectral-tinted stars
+// (max brightness ~0.55) do not trigger bloom; only the Sun's toneMapped:false pixels and
+// additive corona sprites cross the threshold.
 const bloomPass = new THREE.UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.85,   // strength
-  0.6,    // radius
-  0.18    // threshold (lower = more pixels bloom)
+  1.15,   // strength (raised to compensate for higher threshold)
+  0.65,   // radius
+  0.62    // threshold — background stars stay unbloomed
 );
 composer.addPass(bloomPass);
 let bloomEnabled = state.renderQuality === 'quality';
@@ -436,6 +443,31 @@ function makeEarthNightTexture() {
   return t;
 }
 
+// Soft, low-contrast Earth cloud texture used by a separate cloud mesh.
+// Uses low-alpha wispy streaks instead of solid ellipses to avoid bright white blobs.
+function makeEarthCloudsTexture() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const cc = c.getContext('2d');
+  cc.clearRect(0, 0, 1024, 512);
+  // Multi-pass wispy streaks with very low opacity, banded near the equator.
+  for (let pass = 0; pass < 3; pass++) {
+    const alpha = pass === 0 ? 0.18 : (pass === 1 ? 0.10 : 0.06);
+    for (let i = 0; i < 120; i++) {
+      const cx = Math.random() * 1024;
+      const cy = 90 + Math.random() * 332;
+      const rx = 60 + Math.random() * 160;
+      const ry = 6 + Math.random() * 14;
+      cc.fillStyle = `rgba(255,255,255,${alpha})`;
+      cc.beginPath();
+      cc.ellipse(cx, cy, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
+      cc.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  t.wrapS = THREE.RepeatWrapping;
+  return t;
+}
+
 function makeSunTexture() {
   const c = document.createElement('canvas'); c.width = 512; c.height = 256;
   const cc = c.getContext('2d');
@@ -452,24 +484,87 @@ function makeSunTexture() {
   return t;
 }
 
-function makeRingTexture(inner=1.5, outer=2.4, alpha=0.7) {
+// Procedural ring texture generator.
+// options.gaps: array of { pos, width, depth } where pos/width are in 0..1 (radial fraction).
+// options.rgb: base ring color as [r, g, b] bytes 0..255.
+// options.densityCurve: 'bellCenter' (default, Saturn-like) or 'flat' (thin dark rings).
+function makeRingTexture(inner = 1.5, outer = 2.4, alpha = 0.7, options = {}) {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 64;
   const cc = c.getContext('2d');
+  const gaps = options.gaps || [];
+  const rgb = options.rgb || [225, 205, 165];
+  const densityCurve = options.densityCurve || 'bellCenter';
   for (let x = 0; x < 512; x++) {
-    const t = x / 512; // 0..1 inside..outside
-    const r = Math.sin(t*40) * 0.5 + 0.5;
-    const r2 = Math.sin(t*120 + 1.3) * 0.4 + 0.6;
-    const a = (r*0.6 + r2*0.4) * alpha * (1 - Math.abs(t-0.5)*0.4);
-    // Cassini-style gap
-    const gap = Math.exp(-Math.pow((t-0.62)/0.02, 2)) * 0.9;
+    const t = x / 512; // 0 = inner edge, 1 = outer edge
+    const r  = Math.sin(t * 40) * 0.5 + 0.5;
+    const r2 = Math.sin(t * 120 + 1.3) * 0.4 + 0.6;
+    let a = (r * 0.6 + r2 * 0.4) * alpha;
+    if (densityCurve === 'bellCenter') {
+      a *= (1 - Math.abs(t - 0.5) * 0.4);
+    }
+    // Configurable dark gaps.
+    let gap = 0;
+    for (const g of gaps) {
+      const width = g.width || 0.02;
+      const depth = g.depth == null ? 0.9 : g.depth;
+      gap += Math.exp(-Math.pow((t - g.pos) / width, 2)) * depth;
+    }
     const aa = Math.max(0, a - gap);
-    cc.fillStyle = `rgba(225,205,165,${aa})`;
+    cc.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${aa})`;
     cc.fillRect(x, 0, 1, 64);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.encoding = THREE.sRGBEncoding;
   return tex;
+}
+
+// Per-planet procedural ring texture presets (used only when no real ringTex is provided).
+function ringTextureFor(planetEn, inner, outer) {
+  if (planetEn === 'Uranus') {
+    // Uranus: 13 narrow dark rings, mostly the epsilon ring at the outer edge.
+    return makeRingTexture(inner, outer, 0.35, {
+      rgb: [180, 195, 200],
+      densityCurve: 'flat',
+      gaps: [
+        { pos: 0.12, width: 0.015, depth: 0.35 },
+        { pos: 0.28, width: 0.015, depth: 0.35 },
+        { pos: 0.46, width: 0.015, depth: 0.35 },
+        { pos: 0.62, width: 0.02,  depth: 0.30 },
+        { pos: 0.85, width: 0.025, depth: 0.25 },
+      ],
+    });
+  }
+  if (planetEn === 'Neptune') {
+    // Neptune: five faint rings with prominent arcs on the outer Adams ring.
+    return makeRingTexture(inner, outer, 0.22, {
+      rgb: [140, 150, 170],
+      densityCurve: 'flat',
+      gaps: [
+        { pos: 0.18, width: 0.02, depth: 0.20 },
+        { pos: 0.48, width: 0.02, depth: 0.18 },
+        { pos: 0.72, width: 0.02, depth: 0.18 },
+      ],
+    });
+  }
+  if (planetEn === 'Jupiter') {
+    // Jupiter: very faint, single dust ring.
+    return makeRingTexture(inner, outer, 0.15, {
+      rgb: [190, 165, 130],
+      densityCurve: 'bellCenter',
+      gaps: [],
+    });
+  }
+  // Default (Saturn-like) with Cassini + Encke divisions.
+  return makeRingTexture(inner, outer, 0.75, {
+    rgb: [225, 205, 165],
+    densityCurve: 'bellCenter',
+    gaps: [
+      { pos: 0.28, width: 0.010, depth: 0.30 }, // C/B boundary
+      { pos: 0.62, width: 0.022, depth: 0.90 }, // Cassini division
+      { pos: 0.88, width: 0.008, depth: 0.55 }, // Encke gap in A ring
+    ],
+  });
 }
 
 // ---------- Light & stars ----------
@@ -485,42 +580,143 @@ scene.add(sunLight);
 scene.add(new THREE.AmbientLight(0x0a1020, 0.16));
 
 // Starfield
-function buildStarfield() {
-  const N = 4000;
+// Soft circular point-sprite texture for starfield particles.
+function makeStarSpriteTexture() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+  const cc = c.getContext('2d');
+  const g = cc.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  cc.fillStyle = g; cc.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+
+function buildAdvancedStarfield(count) {
   const geo = new THREE.BufferGeometry();
-  const pos = new Float32Array(N*3);
-  const col = new Float32Array(N*3);
-  for (let i = 0; i < N; i++) {
-    const r = 200 + Math.random()*200;
-    const u = Math.random()*2 - 1;
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const size = new Float32Array(count);
+  const twinkle = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    // Distribute on a spherical shell, denser toward the galactic plane.
+    const r = 220 + Math.random() * 180;
+    const u = Math.random() * 2 - 1;
+    // Flatten slightly toward the ecliptic (XZ) plane.
+    const compressedU = u * (0.6 + Math.random() * 0.4);
     const th = Math.random() * Math.PI * 2;
-    const s = Math.sqrt(1 - u*u);
-    pos[i*3]   = r * s * Math.cos(th);
-    pos[i*3+1] = r * u;
-    pos[i*3+2] = r * s * Math.sin(th);
-    // Spectral-type tinting: most stars yellow-white, a few hot blue or cool red.
-    function spectralColor() {
-      const r = Math.random();
-      if (r < 0.06) return [0.62, 0.72, 1.00]; // O/B blue-white
-      if (r < 0.20) return [0.82, 0.88, 1.00]; // A white-blue
-      if (r < 0.55) return [1.00, 1.00, 0.94]; // F/G yellow-white (Sun-like)
-      if (r < 0.85) return [1.00, 0.90, 0.76]; // K orange
-      return [1.00, 0.72, 0.58];               // M red-orange
+    const s = Math.sqrt(1 - compressedU * compressedU);
+    pos[i * 3]     = r * s * Math.cos(th);
+    pos[i * 3 + 1] = r * compressedU;
+    pos[i * 3 + 2] = r * s * Math.sin(th);
+
+    // Spectral-type tinting and apparent brightness.
+    const t = Math.random();
+    let sc, baseMag;
+    if (t < 0.06) {       // O/B blue-white
+      sc = [0.62, 0.72, 1.00]; baseMag = 1.15;
+    } else if (t < 0.20) { // A white-blue
+      sc = [0.82, 0.88, 1.00]; baseMag = 1.05;
+    } else if (t < 0.55) { // F/G yellow-white
+      sc = [1.00, 1.00, 0.94]; baseMag = 0.95;
+    } else if (t < 0.85) { // K orange
+      sc = [1.00, 0.90, 0.76]; baseMag = 0.85;
+    } else {                // M red-orange
+      sc = [1.00, 0.72, 0.58]; baseMag = 0.75;
     }
-    const base = 0.55 + Math.random()*0.45;
-    const sc = spectralColor();
-    col[i*3]   = sc[0] * base;
-    col[i*3+1] = sc[1] * base;
-    col[i*3+2] = sc[2] * base;
+    const brightness = baseMag * (0.55 + Math.random() * 0.45);
+    col[i * 3]     = sc[0] * brightness;
+    col[i * 3 + 1] = sc[1] * brightness;
+    col[i * 3 + 2] = sc[2] * brightness;
+
+    // Apparent size: brighter stars get a larger sprite.
+    size[i] = 0.35 + brightness * 1.1;
+    twinkle[i] = Math.random() * Math.PI * 2;
+  }
+
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  geo.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uTexture: { value: makeStarSpriteTexture() },
+      uBaseSize: { value: 1.0 },
+    },
+    vertexShader: `
+      attribute float aSize;
+      attribute float aTwinkle;
+      attribute vec3 color;
+      uniform float uTime;
+      uniform float uBaseSize;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        float tw = 0.82 + 0.18 * sin(uTime * 1.5 + aTwinkle);
+        gl_PointSize = aSize * uBaseSize * tw * (400.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uTexture;
+      varying vec3 vColor;
+      void main() {
+        float alpha = texture2D(uTexture, gl_PointCoord).r;
+        if (alpha < 0.05) discard;
+        gl_FragColor = vec4(vColor, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  return points;
+}
+
+// Faint galactic dust / nebula particles layered behind the bright stars.
+function buildGalacticDust(count) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const r = 260 + Math.random() * 120;
+    const u = (Math.random() * 2 - 1) * 0.25; // strongly flattened to ecliptic plane
+    const th = Math.random() * Math.PI * 2;
+    const s = Math.sqrt(1 - u * u);
+    pos[i * 3]     = r * s * Math.cos(th);
+    pos[i * 3 + 1] = r * u;
+    pos[i * 3 + 2] = r * s * Math.sin(th);
+    // subtle blue-violet / warm dust
+    const warm = Math.random() > 0.5;
+    col[i * 3]     = warm ? 0.45 : 0.35;
+    col[i * 3 + 1] = warm ? 0.38 : 0.40;
+    col[i * 3 + 2] = warm ? 0.30 : 0.55;
   }
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({ size: 0.6, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.9 });
-  return new THREE.Points(geo, mat);
+  const mat = new THREE.PointsMaterial({
+    size: 2.2, vertexColors: true, transparent: true, opacity: 0.18,
+    sizeAttenuation: false, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  return points;
 }
-const starfield = buildStarfield();
+
+const starfield = buildAdvancedStarfield(4000);
 starfield.geometry.setDrawRange(0, currentQuality().starDrawCount);
 scene.add(starfield);
+const galacticDust = buildGalacticDust(350);
+scene.add(galacticDust);
 
 // Milky-way sky sphere as background
 const skyTex = loadTex(TEXTURES.skyMilkyWay);
@@ -933,18 +1129,22 @@ function buildComet(c, idx) {
 // Thin atmospheric halo via a BackSide shell with a Fresnel-like rim glow.
 // Adds a believable limb-lighting edge to planets with atmospheres.
 const ATMOSPHERE_COLORS = {
-  Earth:   0x6fb4ff,
-  Venus:   0xe8d9a8,
-  Uranus:  0x9fe6ec,
-  Neptune: 0x5b8cff,
-  Mars:    0xe89a6b,
-  Jupiter: 0xe8c9a0,
-  Saturn:  0xe8d6a8,
+  Earth:   { color: 0x6fb4ff, density: 1.10 },
+  Venus:   { color: 0xf0dcb0, density: 1.40 },
+  Uranus:  { color: 0x9fe6ec, density: 0.75 },
+  Neptune: { color: 0x5b8cff, density: 0.80 },
+  Mars:    { color: 0xe89a6b, density: 0.55 },
+  Jupiter: { color: 0xe8c9a0, density: 1.00 },
+  Saturn:  { color: 0xe8d6a8, density: 0.90 },
 };
 function buildAtmosphereShell(radius, colorHex) {
-  const geo = new THREE.SphereGeometry(radius * 1.025, 48, 48);
+  const geo = new THREE.SphereGeometry(radius * 1.035, 48, 48);
   const mat = new THREE.ShaderMaterial({
-    uniforms: { glowColor: { value: new THREE.Color(colorHex) } },
+    uniforms: {
+      glowColor: { value: new THREE.Color(colorHex) },
+      uSunDir: { value: new THREE.Vector3(1.0, 0.0, 0.0) },
+      uDensity: { value: 1.0 },
+    },
     vertexShader: `
       varying vec3 vNormal;
       varying vec3 vViewDir;
@@ -957,11 +1157,19 @@ function buildAtmosphereShell(radius, colorHex) {
     `,
     fragmentShader: `
       uniform vec3 glowColor;
+      uniform vec3 uSunDir;
+      uniform float uDensity;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       void main() {
         float rim = pow(1.0 - abs(dot(vNormal, vViewDir)), 3.0);
-        gl_FragColor = vec4(glowColor, rim * 0.9);
+        // Sunset/warm band near the terminator: dot(normal, sunDir) ≈ 0.
+        float sunDot = dot(vNormal, normalize(uSunDir));
+        float terminator = 1.0 - abs(sunDot);
+        float sunset = pow(terminator, 4.0) * 0.55;
+        vec3 warm = vec3(1.0, 0.55, 0.25);
+        vec3 finalColor = mix(glowColor, warm, sunset);
+        gl_FragColor = vec4(finalColor, rim * 0.85 * uDensity);
       }
     `,
     side: THREE.BackSide,
@@ -1079,14 +1287,30 @@ function buildPlanet(p, idx) {
   }
 
   // Atmospheric rim glow (child of mesh so it shares tilt + scale)
+  let atmosphereShell = null;
   if (ATMOSPHERE_COLORS[p.en]) {
-    mesh.add(buildAtmosphereShell(p.radius, ATMOSPHERE_COLORS[p.en]));
+    const atm = ATMOSPHERE_COLORS[p.en];
+    atmosphereShell = buildAtmosphereShell(p.radius, atm.color);
+    atmosphereShell.material.uniforms.uDensity.value = atm.density;
+    mesh.add(atmosphereShell);
   }
 
   // Earth extras: a night-lights layer whose brightness fades in on the unlit hemisphere.
   // The night layer's sun direction is updated each frame in tick().
   let cloudMesh = null, nightMesh = null;
   if (p.en === 'Earth') {
+    // Soft, low-contrast cloud layer — avoids the bright white splotches of the old overlay.
+    cloudMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(p.radius * 1.006, 48, 48),
+      new THREE.MeshStandardMaterial({
+        map: makeEarthCloudsTexture(),
+        transparent: true, opacity: 0.55,
+        depthWrite: false, blending: THREE.NormalBlending,
+        roughness: 1.0, metalness: 0.0,
+      })
+    );
+    mesh.add(cloudMesh);
+
     nightMesh = new THREE.Mesh(
       new THREE.SphereGeometry(p.radius * 1.004, 48, 48),
       new THREE.ShaderMaterial({
@@ -1139,7 +1363,8 @@ function buildPlanet(p, idx) {
         color: p.ringColor || 0xffffff, depthWrite: false, opacity: 0.95
       });
     } else {
-      const ringTex = makeRingTexture(inner, outer, p.ringAlpha || 0.7);
+      // Per-planet procedural ring texture with realistic gaps.
+      const ringTex = ringTextureFor(p.en, inner, outer);
       ringMat = new THREE.MeshBasicMaterial({ map: ringTex, side: THREE.DoubleSide, transparent: true,
                                               color: p.ringColor || 0xffffff, depthWrite: false });
     }
@@ -1156,18 +1381,8 @@ function buildPlanet(p, idx) {
       ring.rotation.z = p.axialTilt * Math.PI/180;
     }
     group.add(ring);
-
-    // Cassini division — a thin dark band overlaid on Saturn's ring for detail.
-    // Attached to `ring` so it inherits the ring's orientation AND scale (true-scale mode).
-    if (p.en === 'Saturn') {
-      const gapR = inner + (outer - inner) * 0.62;
-      const gapW = (outer - inner) * 0.05;
-      const gapMesh = new THREE.Mesh(
-        new THREE.RingGeometry(gapR - gapW, gapR + gapW, 96, 1),
-        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
-      );
-      ring.add(gapMesh);
-    }
+    // Note: the Cassini division is now painted into the procedural ring texture itself
+    // (see ringTextureFor). No separate overlay mesh needed for Saturn.
   }
 
   // Moons — direct children of the planet group (so they orbit with it)
@@ -1225,7 +1440,7 @@ function buildPlanet(p, idx) {
   group.add(marker);
 
   return {
-    group, mesh, ring, cloudMesh, nightMesh, orbitLine, trail, marker, axisLine,
+    group, mesh, ring, cloudMesh, nightMesh, atmosphere: atmosphereShell, orbitLine, trail, marker, axisLine,
     moons, label: lab, data: p, lastRev: 0
   };
 }
@@ -1363,18 +1578,78 @@ function genBelt(n, aMin, aMax) {
     size: 0.4 + Math.random()*0.8
   }));
 }
-const asteroidData = genBelt(QUALITY_PRESETS.quality.asteroidDrawCount, 2.1, 3.3);
-const kuiperData = genBelt(QUALITY_PRESETS.quality.kuiperDrawCount, 30, 50);
 
-function buildBelt(data, color, sizeScale) {
+// Structured Kuiper Belt with three populations:
+//   - Plutinos: 2:3 mean-motion resonance with Neptune (~39.4 AU, moderate e, low i)
+//   - Classical (cold + hot): the main belt (42–48 AU), low i cold + higher i hot
+//   - Scattered disk: highly eccentric, highly inclined outer objects (>50 AU)
+// Each particle carries a color, so we can tint sub-populations differently.
+function genKuiperBelt(totalN) {
+  const nPlutino = Math.floor(totalN * 0.18);
+  const nClassical = Math.floor(totalN * 0.62);
+  const nScattered = totalN - nPlutino - nClassical;
+  const out = [];
+  // Plutinos: reddish, ~39.4 AU, e up to 0.2, i up to 15°.
+  for (let i = 0; i < nPlutino; i++) {
+    out.push({
+      a: 38.8 + Math.random() * 1.2,
+      e: 0.08 + Math.random() * 0.16,
+      peri: Math.random() * Math.PI * 2,
+      inc: (Math.random() - 0.5) * 0.5, // ±15° or so
+      phase: Math.random() * Math.PI * 2,
+      size: 0.6 + Math.random() * 0.9,
+      color: [0.72, 0.58, 0.48], // red-brown
+    });
+  }
+  // Classical belt: mix of cold (blue-gray, low i) and hot (redder, higher i).
+  for (let i = 0; i < nClassical; i++) {
+    const cold = Math.random() < 0.6;
+    out.push({
+      a: 42.0 + Math.random() * 6.0,
+      e: Math.random() * (cold ? 0.10 : 0.18),
+      peri: Math.random() * Math.PI * 2,
+      inc: cold ? (Math.random() - 0.5) * 0.15 : (Math.random() - 0.5) * 0.45,
+      phase: Math.random() * Math.PI * 2,
+      size: 0.5 + Math.random() * 0.85,
+      color: cold ? [0.55, 0.62, 0.75] : [0.68, 0.60, 0.56],
+    });
+  }
+  // Scattered disk: dim gray, wide range 50–90 AU, high e/i.
+  for (let i = 0; i < nScattered; i++) {
+    out.push({
+      a: 50.0 + Math.random() * 40.0,
+      e: 0.15 + Math.random() * 0.45,
+      peri: Math.random() * Math.PI * 2,
+      inc: (Math.random() - 0.5) * 1.2, // up to ~35°
+      phase: Math.random() * Math.PI * 2,
+      size: 0.45 + Math.random() * 0.8,
+      color: [0.50, 0.52, 0.58],
+    });
+  }
+  return out;
+}
+
+const asteroidData = genBelt(QUALITY_PRESETS.quality.asteroidDrawCount, 2.1, 3.3);
+const kuiperData = genKuiperBelt(QUALITY_PRESETS.quality.kuiperDrawCount);
+
+function buildBelt(data, color, sizeScale, useInstanceColor = false) {
   const geo = new THREE.SphereGeometry(0.01, 6, 6);
   const mat = new THREE.MeshBasicMaterial({ color });
   const im = new THREE.InstancedMesh(geo, mat, data.length);
   im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  if (useInstanceColor) {
+    const colors = new Float32Array(data.length * 3);
+    for (let i = 0; i < data.length; i++) {
+      const cc = data[i].color || [1, 1, 1];
+      colors[i * 3] = cc[0]; colors[i * 3 + 1] = cc[1]; colors[i * 3 + 2] = cc[2];
+    }
+    im.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+    im.instanceColor.needsUpdate = true;
+  }
   return im;
 }
 const asteroidBelt = buildBelt(asteroidData, 0x7d6f5e, 1.0);
-const kuiperBelt   = buildBelt(kuiperData,  0x7a8aa0, 1.2);
+const kuiperBelt   = buildBelt(kuiperData,  0xffffff,  1.2, true); // per-instance color
 scene.add(asteroidBelt); scene.add(kuiperBelt);
 const _mtx = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -1404,6 +1679,48 @@ function updateBelt(im, data, sizeScale, schematicScale = 1.15) {
   im.instanceMatrix.needsUpdate = true;
 }
 
+// ---------- Oort cloud ----------
+// A schematic spherical shell of icy particles far beyond the Kuiper belt.
+// True heliocentric distance ~2,000–50,000 AU, but that scale is orders of magnitude beyond
+// even the true-scale scene budget. We render it as a fixed-distance backdrop shell that
+// scales with the current mode: in schematic/real it forms a faint outer bubble; in true
+// mode it's pushed out with the star background.
+function buildOortCloud(count) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  // Uniform spherical shell between innerR..outerR (scene units for schematic mode).
+  // These base radii sit just beyond Neptune's schematic orbit (~5.3) but stay well inside
+  // the starfield (~200-400), so the shell reads as "太阳系外壳" without occluding stars.
+  const innerR = 8.0, outerR = 12.0;
+  for (let i = 0; i < count; i++) {
+    // Uniform on shell: sample on a sphere, then radius in [innerR, outerR].
+    const u = Math.random() * 2 - 1;
+    const th = Math.random() * Math.PI * 2;
+    const s = Math.sqrt(1 - u * u);
+    const r = innerR + Math.random() * (outerR - innerR);
+    pos[i * 3]     = r * s * Math.cos(th);
+    pos[i * 3 + 1] = r * u;
+    pos[i * 3 + 2] = r * s * Math.sin(th);
+    // Cool blue-white icy particles.
+    col[i * 3]     = 0.60 + Math.random() * 0.10;
+    col[i * 3 + 1] = 0.70 + Math.random() * 0.10;
+    col[i * 3 + 2] = 0.85 + Math.random() * 0.15;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.03, vertexColors: true, transparent: true, opacity: 0.55,
+    sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  points.visible = false; // toggled by state.showOortCloud
+  return points;
+}
+const oortCloud = buildOortCloud(1200);
+scene.add(oortCloud);
+
 function applyRenderQuality() {
   const quality = currentQuality();
 
@@ -1415,6 +1732,12 @@ function applyRenderQuality() {
   renderer.shadowMap.needsUpdate = true;
 
   starfield.geometry.setDrawRange(0, quality.starDrawCount);
+  if (galacticDust && quality.galacticDustDrawCount) {
+    galacticDust.geometry.setDrawRange(0, quality.galacticDustDrawCount);
+  }
+  if (oortCloud && quality.oortDrawCount) {
+    oortCloud.geometry.setDrawRange(0, quality.oortDrawCount);
+  }
   asteroidBelt.count = quality.asteroidDrawCount;
   kuiperBelt.count = quality.kuiperDrawCount;
 
@@ -1437,6 +1760,38 @@ function setRenderQuality(mode) {
 }
 
 applyRenderQuality();
+
+// ---------- Adaptive quality ----------
+// Monitors instantaneous frame time. If quality mode is active and we spend a sustained
+// window over the "slow" budget, auto-demote to performance so the user gets responsive
+// interaction even on weak GPUs. One-way to prevent oscillation; user can manually restore.
+const ADAPTIVE_WINDOW_S = 4.0;   // require sustained slowness before demoting
+const ADAPTIVE_SLOW_MS = 60;     // > ~16 FPS ceiling; 60 ms = under ~16 FPS avg
+let adaptiveAccumSlow = 0;
+let adaptiveAccumTime = 0;
+let adaptiveDemoted = false;
+function adaptivePerfCheck(dt) {
+  if (adaptiveDemoted) return;
+  if (state.renderQuality !== 'quality') return;
+  adaptiveAccumTime += dt;
+  if (dt * 1000 > ADAPTIVE_SLOW_MS) adaptiveAccumSlow += dt;
+  if (adaptiveAccumTime >= ADAPTIVE_WINDOW_S) {
+    // If ≥ 60% of the window was slow, demote.
+    if (adaptiveAccumSlow / adaptiveAccumTime > 0.6) {
+      adaptiveDemoted = true;
+      setRenderQuality('performance');
+      const chip = document.getElementById('solo-status');
+      // Reuse the transient chip to inform the user we auto-tuned quality.
+      if (chip) {
+        const prev = chip.textContent;
+        chip.textContent = t('adaptive.demoted');
+        setTimeout(() => { if (chip.textContent === t('adaptive.demoted')) chip.textContent = prev; }, 3500);
+      }
+    }
+    adaptiveAccumSlow = 0;
+    adaptiveAccumTime = 0;
+  }
+}
 
 // ---------- Scale mode (schematic / real / true) ----------
 // In true mode 1 scene unit = 1 Earth diameter: bodies sized by real diameter,
@@ -1481,7 +1836,23 @@ function applyScaleMode() {
   const bg = isTrue ? BACKGROUND_TRUE_SCALE : 1;
   skySphere.scale.setScalar(bg);
   starfield.scale.setScalar(bg);
+  galacticDust.scale.setScalar(bg);
   brightStarsGroup.scale.setScalar(bg);
+  // Oort cloud: sits in schematic space (built at ~8-12 units). Scale up per mode so the
+  // shell always reads as "outside Neptune" but stays inside the star background.
+  if (oortCloud) {
+    if (isTrue) {
+      // In true scale, real Kuiper belt is at ~50 AU (~590k units). Push Oort shell to well
+      // outside that but still much closer than the starfield.
+      oortCloud.scale.setScalar(AU_IN_EARTH_DIAMETERS * 0.75);
+    } else if (state.scaleMode === 'real') {
+      // Real mode: 1 unit = 1 AU. Real Oort inner edge ~2000 AU is far outside our view,
+      // so schematic-style shell at ~10 units reads as "太阳系外围".
+      oortCloud.scale.setScalar(6.0);
+    } else {
+      oortCloud.scale.setScalar(1.0);
+    }
+  }
   skySphere.material.side = isTrue ? THREE.DoubleSide : THREE.BackSide;
   skySphere.material.opacity = isTrue ? 0.8 : 0.55;
   eclipticPlane.scale.setScalar(isTrue ? AU_IN_EARTH_DIAMETERS : 1);
@@ -1609,6 +1980,11 @@ function tick() {
   }
   if (sunProminences) sunProminences.rotation.y += dt * 0.04;
 
+  // Starfield twinkle
+  if (starfield && starfield.material.uniforms.uTime) {
+    starfield.material.uniforms.uTime.value = clock.elapsedTime;
+  }
+
   // Update planets
   for (let i = 0; i < planetObjs.length; i++) {
     const po = planetObjs[i];
@@ -1655,6 +2031,10 @@ function tick() {
     if (po.nightMesh) {
       po.nightMesh.material.uniforms.uSunDir.value.copy(po.group.position).multiplyScalar(-1).normalize();
     }
+    // Atmosphere shell sunset direction: same world-space Sun direction (planet -> Sun).
+    if (po.atmosphere) {
+      po.atmosphere.material.uniforms.uSunDir.value.copy(po.group.position).multiplyScalar(-1).normalize();
+    }
 
     // Moons (local to planet group)
     for (const m of po.moons) {
@@ -1677,6 +2057,7 @@ function tick() {
 
   asteroidBelt.visible = state.showBelts;
   kuiperBelt.visible = state.showBelts;
+  oortCloud.visible = state.showOortCloud;
   eclipticPlane.visible = state.showEcliptic;
 
   // Update comets
@@ -1750,7 +2131,9 @@ function tick() {
   }
   if (state.showBelts) {
     updateBelt(asteroidBelt, asteroidData, 1.0, 0.76); // schematic: keep belt between Mars and Jupiter
-    updateBelt(kuiperBelt, kuiperData, 1.2);
+    // Kuiper: real a ranges 38–90 AU; in schematic mode Neptune sits at 5.3 units (real 30 AU),
+    // so 1/5.66 ≈ 0.177 keeps the belt just outside Neptune (~6.7–15.9 units).
+    updateBelt(kuiperBelt, kuiperData, 1.2, 0.177);
   }
 
   // Update dwarf planets (Pluto / Ceres / Eris)
@@ -1854,6 +2237,9 @@ function tick() {
   updateLabels();
   updateTimelineUI();
   document.getElementById('speed-info').textContent = localizedSpeedLabel(state.speedMode);
+  // Adaptive quality: if the last N frames are slow and we are still in quality mode,
+  // demote to performance. One-way (never auto-upgrade to avoid flapping).
+  adaptivePerfCheck(dt);
   requestAnimationFrame(tick);
 }
 

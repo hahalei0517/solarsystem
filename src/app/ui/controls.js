@@ -47,6 +47,7 @@ export function createControlsController({
     { key: 'showLabels', button: 'labels-btn', checkbox: 'layer-labels' },
     { key: 'showTrails', button: 'trail-btn', checkbox: 'layer-trails' },
     { key: 'showBelts', button: 'belts-btn', checkbox: 'layer-belts' },
+    { key: 'showOortCloud', checkbox: 'layer-oort' },
     { key: 'showComets', button: 'comets-btn', checkbox: 'layer-comets' },
     { key: 'showDwarfs', button: 'dwarfs-btn', checkbox: 'layer-dwarfs' },
     { key: 'showSpacecraft', checkbox: 'layer-spacecraft' },

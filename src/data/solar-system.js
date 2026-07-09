@@ -18,6 +18,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_mercury.jpg', import.meta.url).href,
     orbit:0.5, realAU:0.39, period:87.97, realDiameterKm:4879,
     e:0.206, inc:7.0, peri:77, rotPeriod:58.6,
+    classification: 'terrestrial', massEarth: 0.055, gravity: 3.7, surfaceTemp: '-173 到 427 ℃',
     desc:"距离太阳最近的行星，昼夜温差极大，没有大气层。",
     fact:"水星表面有一处直径约 1,550 km的卡路里盆地，是太阳系最大的撞击坑之一。",
     stats:{"公转周期":"88 天","自转周期":"59 天","直径":"4,879 km","距日":"0.39 AU","偏心率":"0.206","轨道倾角":"7.00°"},
@@ -28,6 +29,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_venus_surface.jpg', import.meta.url).href,
     orbit:0.8, realAU:0.72, period:224.7, realDiameterKm:12104,
     e:0.007, inc:3.4, peri:132, rotPeriod:-243, axialTilt:177.4,
+    classification: 'terrestrial', massEarth: 0.815, gravity: 8.87, surfaceTemp: '约 464 ℃',
     desc:"最炽热的行星，浓密的二氧化碳大气产生强烈温室效应。",
     fact:"金星自转方向与多数行星相反，在金星上太阳从西边升起、东边落下。",
     stats:{"公转周期":"225 天","自转周期":"243 天 (逆向)","直径":"12,104 km","距日":"0.72 AU","偏心率":"0.007","轨道倾角":"3.39°"},
@@ -38,6 +40,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_earth_daymap.jpg', import.meta.url).href,
     orbit:1.15, realAU:1.00, period:365.25, realDiameterKm:12742,
     e:0.017, inc:0.0, peri:103, rotPeriod:0.997, axialTilt:23.5,
+    classification: 'terrestrial', massEarth: 1.000, gravity: 9.81, surfaceTemp: '约 15 ℃ (均温)',
     desc:"目前已知唯一孕育生命的行星，表面 71% 被液态水覆盖。",
     fact:"地球的大气层中约 78% 是氮气，21% 是氧气，其余气体不足 1%。",
     stats:{"公转周期":"365.25 天","自转周期":"23.93 小时","直径":"12,742 km","距日":"1.00 AU","偏心率":"0.017","轨道倾角":"0° (基准面)"},
@@ -53,6 +56,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_mars.jpg', import.meta.url).href,
     orbit:1.6, realAU:1.52, period:686.97, realDiameterKm:6779,
     e:0.094, inc:1.85, peri:336, rotPeriod:1.026, axialTilt:25.2,
+    classification: 'terrestrial', massEarth: 0.107, gravity: 3.71, surfaceTemp: '-140 到 20 ℃',
     desc:"红色星球，存在最高的奥林帕斯山，曾有液态水流动痕迹。",
     fact:"火星的奥林帕斯山高约 22 km，是地球珠峰的近 2.5 倍，为太阳系最高山。",
     stats:{"公转周期":"687 天","自转周期":"24.6 小时","直径":"6,779 km","距日":"1.52 AU","偏心率":"0.094","轨道倾角":"1.85°"},
@@ -74,6 +78,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_jupiter.jpg', import.meta.url).href,
     orbit:2.6, realAU:5.20, period:4332.59, realDiameterKm:139820,
     e:0.049, inc:1.3, peri:14, rotPeriod:0.414, axialTilt:3.1,
+    classification: 'gasGiant', massEarth: 317.8, gravity: 24.79, surfaceTemp: '约 -145 ℃ (云顶)',
     desc:"太阳系最大的行星，气态巨行星，著名的大红斑已持续数百年。",
     fact:"木星的大红斑是一个已持续至少 350 年的反气旋风暴，曾大到能装下三个地球。",
     stats:{"公转周期":"11.86 年","自转周期":"9.93 小时","直径":"139,820 km","距日":"5.20 AU","偏心率":"0.049","轨道倾角":"1.30°"},
@@ -108,6 +113,7 @@ export const PLANETS = [
     ringTex:new URL('../../textures/2k_saturn_ring_alpha.png', import.meta.url).href,
     orbit:3.6, realAU:9.54, period:10759.22, realDiameterKm:116460,
     e:0.057, inc:2.49, peri:93, rotPeriod:0.444,
+    classification: 'gasGiant', massEarth: 95.16, gravity: 10.44, surfaceTemp: '约 -178 ℃ (云顶)',
     desc:"拥有最壮观的行星环系统，主要由冰和岩石组成。",
     fact:"土星的平均密度只有 0.69 g/cm³，比水还轻——理论上能浮在足够大的水面上。",
     stats:{"公转周期":"29.46 年","自转周期":"10.7 小时","直径":"116,460 km","距日":"9.54 AU","偏心率":"0.057","轨道倾角":"2.49°"},
@@ -151,6 +157,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_uranus.jpg', import.meta.url).href,
     orbit:4.5, realAU:19.2, period:30688.5, realDiameterKm:50724,
     e:0.046, inc:0.77, peri:173, rotPeriod:-0.718,
+    classification: 'iceGiant', massEarth: 14.54, gravity: 8.87, surfaceTemp: '约 -216 ℃ (云顶)',
     desc:"侧躺自转的冰巨星，大气富含甲烷使其呈青蓝色。",
     fact:"天王星自转轴倾斜近 98°，几乎'躺着'绕日公转，每极有长达 42 年的极昼或极夜。",
     stats:{"公转周期":"84 年","自转周期":"17.2 小时 (倾斜97°)","直径":"50,724 km","距日":"19.2 AU","偏心率":"0.046","轨道倾角":"0.77°"},
@@ -188,6 +195,7 @@ export const PLANETS = [
     tex:new URL('../../textures/2k_neptune.jpg', import.meta.url).href,
     orbit:5.3, realAU:30.1, period:60182, realDiameterKm:49244,
     e:0.011, inc:1.77, peri:48, rotPeriod:0.671, axialTilt:28.3,
+    classification: 'iceGiant', massEarth: 17.15, gravity: 11.15, surfaceTemp: '约 -214 ℃ (云顶)',
     desc:"最远的行星，风速可达 2,100 km/h，是太阳系风暴最剧烈的世界。",
     fact:"海王星是用数学算出来的行星：天文学家先由天王星轨道异常推算其位置，之后才用望远镜确认。",
     stats:{"公转周期":"165 年","自转周期":"16.1 小时","直径":"49,244 km","距日":"30.1 AU","偏心率":"0.011","轨道倾角":"1.77°"},
@@ -202,7 +210,8 @@ export const PLANETS = [
         desc:"海王星轨道偏心率最大的卫星，距海王星远近变化悬殊（近日约 130 万 km，远日约 970 万 km），可能同样是俘获天体。",
         stats:{ "直径":"约 340 km", "公转周期":"约 360 天", "距母星":"约 5,513,400 km (平均)" }
       }
-    ]
+    ],
+    hasRing:true, ringColor:0x8CA0B4, ringAlpha:0.22
   }
 ];
 
@@ -278,6 +287,7 @@ export const COMET_SHOWERS = {
 export const DWARFS = [
   {
     name: "冥王星", en: "Pluto", color: 0xC9A98A, radius: 0.05, realDiameterKm: 2376,
+    classification: 'dwarf', gravity: 0.62, surfaceTemp: '约 -230 ℃',
     q: 29.66, e: 0.248, i: 17.16, w: 113.96, Om: 110.30, T: 248.0, tp: -3770,  // 1989-09-05 perihelion (29.7 AU); now outbound toward 2114 aphelion
     desc: "冥王星曾是第九大行星，2006 年被重新归类为矮行星。它位于柯伊伯带，自转轴倾斜约 120°，拥有稀薄大气和 5 颗卫星，最大卫星冥卫一几乎与它大小相当，二者互相潮汐锁定。",
     fact:"冥王星表面有一片心形冰原（汤博区），由冻结的氮、甲烷和一氧化碳组成。",
@@ -285,6 +295,7 @@ export const DWARFS = [
   },
   {
     name: "谷神星", en: "Ceres", color: 0x9C8E78, radius: 0.035, realDiameterKm: 940,
+    classification: 'dwarf', gravity: 0.27, surfaceTemp: '约 -105 ℃',
     q: 2.558, e: 0.076, i: 10.59, w: 73.7, Om: 80.3, T: 4.60, tp: 6669, orbit: 1.95,  // schematic a anchors in the asteroid belt (Mars 1.6 / Jupiter 2.6); real a≈2.7675 AU
     desc: "谷神星是小行星带中最大的天体，也是唯一的矮行星，1801 年发现时曾被视为行星。其表面有冰火山和神秘亮斑（Occator 撞击坑内的盐类沉积），冰壳之下可能存在含盐海洋。",
     fact:"谷神星占小行星带总质量的约三分之一。",
@@ -292,6 +303,7 @@ export const DWARFS = [
   },
   {
     name: "阋神星", en: "Eris", color: 0xD6D6DC, radius: 0.05, realDiameterKm: 2326,
+    classification: 'dwarf', gravity: 0.83, surfaceTemp: '约 -230 ℃',
     q: 38.3, e: 0.436, i: 44.04, w: 151.0, Om: 35.9, T: 558.0, tp: -92200,  // last perihelion ~mid-18th century; currently near aphelion (~96 AU)
     desc: "阋神星的发现直接促成冥王星被降级为矮行星——它的质量比冥王星还大约 27%。位于离散盘，轨道高度倾斜偏心，有一颗卫星阋卫一（Dysnomia）。",
     fact:"阋神星质量比冥王星大，但因其轨道未清空邻近天体而同样被归为矮行星。",
