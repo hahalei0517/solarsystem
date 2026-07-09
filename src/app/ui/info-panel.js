@@ -5,6 +5,7 @@ import {
   localizedPlanet,
   localizedComet,
   localizedDwarf,
+  localizedSpacecraft,
   localizedMoon,
   localizedStats,
 } from '../i18n/bodies.js';
@@ -15,10 +16,12 @@ export function createInfoPanelController({
   planets,
   comets,
   dwarfs,
+  spacecraft,
   cometShowers,
   ephem,
   ephemerisAU,
   cometOrbitPos,
+  spacecraftPositionAU,
   updatePlanetListUI,
 }) {
   // Zodiac constellations along the ecliptic (each spans 30° of ecliptic longitude).
@@ -216,6 +219,47 @@ export function createInfoPanelController({
     document.getElementById('info-moons-wrap').style.display = 'none';
   }
 
+  function showSpacecraftInfo(scIdx=0) {
+    const s = spacecraft[scIdx];
+    state.spacecraftFocusIndex = scIdx;
+    state.focusIndex = -1;
+    state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    const sLoc = localizedSpacecraft(s);
+    const info = document.getElementById('info');
+    info.classList.remove('hidden');
+    const exitBtn = document.getElementById('event-exit');
+    if (exitBtn) exitBtn.style.display = 'none';
+    const swatch = document.getElementById('info-swatch');
+    const cc = '#' + s.color.toString(16).padStart(6,'0');
+    swatch.style.background = cc;
+    swatch.style.color = cc;
+    document.getElementById('info-name').textContent = bodyTitle(s);
+    document.getElementById('info-desc').textContent = sLoc.desc;
+    fillFact(sLoc);
+    const dl = document.getElementById('info-stats');
+    dl.innerHTML = '';
+    const pos = spacecraftPositionAU(s, state.simDays);
+    const dist = pos.length();
+    let lon = Math.atan2(pos.y, pos.x) * 180 / Math.PI;
+    if (lon < 0) lon += 360;
+    const lat = Math.asin(THREE.MathUtils.clamp(pos.z / dist, -1, 1)) * 180 / Math.PI;
+    dl.innerHTML += `<dt>${t('label.currentDistance')}</dt><dd>${dist.toFixed(3)} AU</dd>`;
+    dl.innerHTML += `<dt>${t('label.longitude')}</dt><dd>${lon.toFixed(2)}°</dd>`;
+    dl.innerHTML += `<dt>${t('label.latitude')}</dt><dd>${lat.toFixed(2)}°</dd>`;
+    // Distance from Earth
+    const earthPos = ephemerisAU('Earth', state.simDays);
+    if (earthPos) {
+      const dx = pos.x - earthPos.x, dy = pos.y - earthPos.y, dz = pos.z - earthPos.z;
+      const earthDist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      dl.innerHTML += `<dt>${t('label.earthDistance')}</dt><dd>${earthDist.toFixed(3)} AU</dd>`;
+    }
+    for (const [k,v] of Object.entries(sLoc.stats)) dl.innerHTML += `<dt>${k}</dt><dd>${v}</dd>`;
+    const bar = document.getElementById('info-compare');
+    if (bar) bar.innerHTML = '';
+    document.getElementById('info-moons-wrap').style.display = 'none';
+  }
+
   function showMoonDetail(planetIdx, moonIdx) {
     if (state.focusIndex !== planetIdx) {
       state.focusIndex = planetIdx;
@@ -245,6 +289,7 @@ export function createInfoPanelController({
     info.classList.add('hidden');
     state.cometFocusIndex = -1;
     state.dwarfFocusIndex = -1;
+    state.spacecraftFocusIndex = -1;
     if (state.soloIndex === -1) {
       state.focusIndex = -1;
       updatePlanetListUI();
@@ -255,7 +300,8 @@ export function createInfoPanelController({
     if (state.focusIndex >= 0) showInfo(state.focusIndex);
     else if (state.cometFocusIndex >= 0) showCometInfo(state.cometFocusIndex);
     else if (state.dwarfFocusIndex >= 0) showDwarfInfo(state.dwarfFocusIndex);
+    else if (state.spacecraftFocusIndex >= 0) showSpacecraftInfo(state.spacecraftFocusIndex);
   });
 
-  return { showInfo, showCometInfo, showDwarfInfo, showMoonDetail, closeInfoPanel };
+  return { showInfo, showCometInfo, showDwarfInfo, showSpacecraftInfo, showMoonDetail, closeInfoPanel };
 }

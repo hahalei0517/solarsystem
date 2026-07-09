@@ -6,6 +6,7 @@ function findBodyTranslation(body) {
   return BODY_TRANSLATIONS[body.en]
     || BODY_TRANSLATIONS.comets?.[body.en]
     || BODY_TRANSLATIONS.dwarfs?.[body.en]
+    || BODY_TRANSLATIONS.spacecraft?.[body.en]
     || BODY_TRANSLATIONS.moons?.[body.en];
 }
 
@@ -89,6 +90,18 @@ export function localizedDwarf(d) {
     desc: tr.desc || d.desc,
     fact: tr.fact ?? d.fact,
     stats: localizedStats(d.stats, tr.stats)
+  };
+}
+
+export function localizedSpacecraft(s) {
+  const tr = BODY_TRANSLATIONS.spacecraft?.[s.en];
+  if (currentLang() === DEFAULT_LANG || !tr) return s;
+  return {
+    ...s,
+    name: tr.name || s.name,
+    desc: tr.desc || s.desc,
+    fact: tr.fact ?? s.fact,
+    stats: localizedStats(s.stats, tr.stats)
   };
 }
 

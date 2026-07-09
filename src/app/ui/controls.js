@@ -9,6 +9,7 @@ export function createControlsController({
   planets,
   comets,
   dwarfs,
+  spacecraft,
   j2000,
   cometOrbitPos,
   THREE,
@@ -30,10 +31,12 @@ export function createControlsController({
   flyToSun,
   flyToComet,
   flyToDwarf,
+  flyToSpacecraft,
   showInfo,
   showSunInfo,
   showCometInfo,
   showDwarfInfo,
+  showSpacecraftInfo,
   closeInfoPanel,
   updatePlanetListUI,
   setRenderQuality,
@@ -46,6 +49,7 @@ export function createControlsController({
     { key: 'showBelts', button: 'belts-btn', checkbox: 'layer-belts' },
     { key: 'showComets', button: 'comets-btn', checkbox: 'layer-comets' },
     { key: 'showDwarfs', button: 'dwarfs-btn', checkbox: 'layer-dwarfs' },
+    { key: 'showSpacecraft', checkbox: 'layer-spacecraft' },
     { key: 'showEvents', checkbox: 'layer-events' },
     { key: 'rotateAroundCursor', checkbox: 'layer-rotate-cursor' },
     { key: 'showAxis', checkbox: 'layer-axis' },
@@ -129,6 +133,9 @@ export function createControlsController({
     } else if (state.soloDwarfIndex >= 0) {
       label = t('solo.dwarf', { name: bodyName(dwarfs[state.soloDwarfIndex]) });
       active = true;
+    } else if (state.soloSpacecraftIndex >= 0) {
+      label = t('solo.spacecraft', { name: bodyName(spacecraft[state.soloSpacecraftIndex]) });
+      active = true;
     } else {
       label = t('action.panorama');
       active = false;
@@ -144,8 +151,10 @@ export function createControlsController({
     state.focusIndex = -1;
     state.cometFocusIndex = -1;
     state.dwarfFocusIndex = -1;
+    state.spacecraftFocusIndex = -1;
     state.soloCometIndex = -1;
     state.soloDwarfIndex = -1;
+    state.soloSpacecraftIndex = -1;
     showInfo(-1);
     updatePlanetListUI();
     updateSoloStatus();
@@ -158,8 +167,10 @@ export function createControlsController({
     state.focusIndex = index;
     state.cometFocusIndex = -1;
     state.dwarfFocusIndex = -1;
+    state.spacecraftFocusIndex = -1;
     state.soloCometIndex = -1;
     state.soloDwarfIndex = -1;
+    state.soloSpacecraftIndex = -1;
     soundApi.select(index);
     flyToPlanet(index);
     showInfo(index);
@@ -174,8 +185,10 @@ export function createControlsController({
     state.focusIndex = -1;
     state.cometFocusIndex = -1;
     state.dwarfFocusIndex = -1;
+    state.spacecraftFocusIndex = -1;
     state.soloCometIndex = -1;
     state.soloDwarfIndex = -1;
+    state.soloSpacecraftIndex = -1;
     soundApi.uiTick();
     flyToSun();
     showSunInfo();
@@ -189,7 +202,9 @@ export function createControlsController({
     state.focusIndex = -1;
     state.cometFocusIndex = -1;
     state.dwarfFocusIndex = -1;
+    state.spacecraftFocusIndex = -1;
     state.soloDwarfIndex = -1;
+    state.soloSpacecraftIndex = -1;
     state.soloCometIndex = index;
     if (!state.showComets) {
       state.showComets = true;
@@ -209,6 +224,7 @@ export function createControlsController({
     state.cometFocusIndex = -1;
     state.dwarfFocusIndex = -1;
     state.soloCometIndex = -1;
+    state.soloSpacecraftIndex = -1;
     state.soloDwarfIndex = index;
     if (!state.showDwarfs) {
       state.showDwarfs = true;
@@ -217,6 +233,26 @@ export function createControlsController({
     soundApi.uiTick();
     flyToDwarf(index);
     showDwarfInfo(index);
+    updatePlanetListUI();
+    updateSoloStatus();
+  }
+
+  function setSoloSpacecraft(index) {
+    state.soloSun = false;
+    state.soloIndex = -1;
+    state.focusIndex = -1;
+    state.cometFocusIndex = -1;
+    state.dwarfFocusIndex = -1;
+    state.soloCometIndex = -1;
+    state.soloDwarfIndex = -1;
+    state.soloSpacecraftIndex = index;
+    if (!state.showSpacecraft) {
+      state.showSpacecraft = true;
+      syncLayerMenu();
+    }
+    soundApi.uiTick();
+    flyToSpacecraft(index);
+    showSpacecraftInfo(index);
     updatePlanetListUI();
     updateSoloStatus();
   }
@@ -497,6 +533,7 @@ export function createControlsController({
     setSoloSun,
     setSoloComet,
     setSoloDwarf,
+    setSoloSpacecraft,
     closeHelpPanel,
     toggleHelpPanel,
     syncLayerMenu,

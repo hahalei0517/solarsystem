@@ -1,4 +1,5 @@
 import { SUN, PLANETS, SPEED_MODES, J2000, COMETS, EPHEM, TEXTURES, DWARFS, COMET_SHOWERS, SUN_SPOT_CYCLE } from '../data/solar-system.js';
+import { SPACECRAFT, spacecraftPositionAU } from '../data/spacecraft.js';
 import {
   solveKepler,
   ephemerisCoordsAU,
@@ -27,6 +28,7 @@ import {
   localizedPlanet,
   localizedComet,
   localizedDwarf,
+  localizedSpacecraft,
   localizedSpeedLabel,
 } from './i18n/bodies.js';
 
@@ -675,6 +677,7 @@ sunMesh.userData = { isSun: true }; // tag for raycast click
 const planetObjs = []; // { group, mesh, orbitLine, moons:[{mesh,orbitLine}], data }
 const cometObjs = [];  // { group, head, tail, orbitLine, data }
 const dwarfObjs = [];  // { group, mesh, orbitLine, label, data }
+const spacecraftObjs = []; // { group, marker, label, data }
 const labelEls = [];
 
 // ---------- State (declared early — used by semiMajor/buildOrbit during construction) ----------
@@ -1304,6 +1307,36 @@ for (let i = 0; i < DWARFS.length; i++) {
   dwarfObjs.push(buildDwarf(DWARFS[i], i));
 }
 
+// ---------- Interplanetary spacecraft ----------
+// Shown only in true-scale mode: the craft are far too small to see at other scales,
+// and their distances would clutter the schematic/real views. A tinted ring marker
+// makes them locatable and clickable in true scale.
+function buildSpacecraft(sp, idx) {
+  const group = new THREE.Group();
+  group.visible = false;
+  scene.add(group);
+
+  // True-scale locatability marker (child of group -> follows the spacecraft).
+  const marker = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: ringMarkerTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+    color: sp.color,
+  }));
+  marker.scale.set(1, 1, 1);
+  marker.visible = false;
+  marker.userData = { spacecraftIdx: idx, isMarker: true };
+  group.add(marker);
+
+  const lab = document.createElement('div');
+  lab.className = 'pl-label';
+  lab.textContent = bodyName(sp);
+  document.getElementById('planet-labels').appendChild(lab);
+
+  return { group, marker, label: lab, data: sp };
+}
+for (let i = 0; i < SPACECRAFT.length; i++) {
+  spacecraftObjs.push(buildSpacecraft(SPACECRAFT[i], i));
+}
+
 // ---------- Asteroid + Kuiper belts (InstancedMesh) ----------
 function genBelt(n, aMin, aMax) {
   return new Array(n).fill(0).map(() => ({
@@ -1742,6 +1775,38 @@ function tick() {
     }
   }
 
+  // Update spacecraft (true-scale only)
+  for (let si = 0; si < spacecraftObjs.length; si++) {
+    const so = spacecraftObjs[si];
+    const visible = state.scaleMode === 'true'
+      && state.showSpacecraft
+      && (state.soloSpacecraftIndex === -1 || state.soloSpacecraftIndex === si)
+      && !state.soloSun
+      && state.soloIndex === -1
+      && state.soloCometIndex === -1
+      && state.soloDwarfIndex === -1;
+    so.group.visible = visible;
+    so.label.style.display = 'none';
+    if (!visible) continue;
+
+    const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(AU_IN_EARTH_DIAMETERS);
+    so.group.position.copy(pos);
+
+    // True-scale locatability marker: fixed apparent size regardless of distance.
+    const camDist = camera.position.distanceTo(pos);
+    const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
+    const s = Math.max(1, camDist * k);
+    so.marker.scale.set(s, s, 1);
+    so.marker.visible = true;
+
+    if (state.showLabels && (state.soloSpacecraftIndex === -1 || state.soloSpacecraftIndex === si)) {
+      const tmp = pos.clone().project(camera);
+      so.label.style.display = (tmp.z < 1) ? 'block' : 'none';
+      so.label.style.left = ((tmp.x*0.5+0.5)*window.innerWidth) + 'px';
+      so.label.style.top  = ((-tmp.y*0.5+0.5)*window.innerHeight) + 'px';
+    }
+  }
+
   if (eventVisuals && state.eventFocus && state.eventFocus.typeCode === 'transit') {
     eventVisuals.children.forEach(obj => {
       if (obj.geometry && obj.geometry.type === 'RingGeometry') obj.lookAt(camera.position);
@@ -2127,9 +2192,9 @@ function updateTimelineUI() {
 }
 
 // ---------- UI Controllers ----------
-let showInfo, showCometInfo, showDwarfInfo, showMoonDetail, closeInfoPanel;
+let showInfo, showCometInfo, showDwarfInfo, showSpacecraftInfo, showMoonDetail, closeInfoPanel;
 let updatePlanetListUI;
-let setSoloPlanet, setSoloSun, setSoloComet, setSoloDwarf, clearSoloMode, updateSoloStatus;
+let setSoloPlanet, setSoloSun, setSoloComet, setSoloDwarf, setSoloSpacecraft, clearSoloMode, updateSoloStatus;
 
 // Smooth camera fly-to. Wall-clock driven (not per-frame) so the duration stays ~constant
 // regardless of FPS — important in real/true scale where the scene is heavy and a frame-count
@@ -2199,6 +2264,14 @@ function flyToDwarf(di) {
   flyTo(pos.clone().add(offset), pos);
 }
 
+function flyToSpacecraft(si) {
+  const so = spacecraftObjs[si];
+  const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(AU_IN_EARTH_DIAMETERS);
+  const dist = Math.max(1, pos.length() * 0.08);
+  const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
+  flyTo(pos.clone().add(offset), pos);
+}
+
 function resetCamera() {
   const farthest = state.scaleMode === 'true'
     ? PLANETS[7].realAU * AU_IN_EARTH_DIAMETERS
@@ -2242,13 +2315,15 @@ const infoPanel = createInfoPanelController({
   planets: PLANETS,
   comets: COMETS,
   dwarfs: DWARFS,
+  spacecraft: SPACECRAFT,
   cometShowers: COMET_SHOWERS,
   ephem: EPHEM,
   ephemerisAU,
   cometOrbitPos,
+  spacecraftPositionAU,
   updatePlanetListUI: () => updatePlanetListUI(),
 });
-({ showInfo, showCometInfo, showDwarfInfo, showMoonDetail, closeInfoPanel } = infoPanel);
+({ showInfo, showCometInfo, showDwarfInfo, showSpacecraftInfo, showMoonDetail, closeInfoPanel } = infoPanel);
 
 const planetList = createPlanetListController({
   document,
@@ -2281,6 +2356,7 @@ controlsController = createControlsController({
   planets: PLANETS,
   comets: COMETS,
   dwarfs: DWARFS,
+  spacecraft: SPACECRAFT,
   j2000: J2000,
   cometOrbitPos,
   THREE,
@@ -2305,19 +2381,22 @@ controlsController = createControlsController({
   flyToSun,
   flyToComet,
   flyToDwarf,
+  flyToSpacecraft,
   showInfo,
   showSunInfo,
   showCometInfo,
   showDwarfInfo,
+  showSpacecraftInfo,
   closeInfoPanel,
   updatePlanetListUI,
 });
-({ setSoloPlanet, setSoloSun, setSoloComet, setSoloDwarf, clearSoloMode, updateSoloStatus } = controlsController);
+({ setSoloPlanet, setSoloSun, setSoloComet, setSoloDwarf, setSoloSpacecraft, clearSoloMode, updateSoloStatus } = controlsController);
 
 function refreshLabels() {
   for (let i = 0; i < planetObjs.length; i++) planetObjs[i].label.textContent = bodyName(PLANETS[i]);
   for (let i = 0; i < cometObjs.length; i++) cometObjs[i].label.textContent = bodyName(COMETS[i]);
   for (let i = 0; i < dwarfObjs.length; i++) dwarfObjs[i].label.textContent = bodyName(DWARFS[i]);
+  for (let i = 0; i < spacecraftObjs.length; i++) spacecraftObjs[i].label.textContent = bodyName(SPACECRAFT[i]);
   for (const bs of brightStarLabels) bs.label.textContent = t(`brightStars.${bs.key}`);
 }
 
@@ -2363,19 +2442,23 @@ installSelectionHandlers({
   planetObjs,
   cometObjs,
   dwarfObjs,
+  spacecraftObjs,
   planets: PLANETS,
   comets: COMETS,
   dwarfs: DWARFS,
+  spacecraft: SPACECRAFT,
   setSoloPlanet,
   setSoloSun,
   setSoloComet,
   setSoloDwarf,
+  setSoloSpacecraft,
   clearSoloMode,
   flyToPlanet,
   showInfo,
   showMoonDetail,
   showCometInfo,
   showDwarfInfo,
+  showSpacecraftInfo,
   showSunInfo,
   updatePlanetListUI,
   soundApi: sound,

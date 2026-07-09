@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COMETS, PLANETS, DWARFS, COMET_SHOWERS, SUN_SPOT_CYCLE } from '../src/data/solar-system.js';
+import { SPACECRAFT } from '../src/data/spacecraft.js';
 
 describe('solar-system data', () => {
   it('contains the eight major planets', () => {
@@ -94,5 +95,34 @@ describe('solar-system data', () => {
     expect(SUN_SPOT_CYCLE.years).toEqual(expect.any(Number));
     expect(SUN_SPOT_CYCLE.years).toBeGreaterThan(0);
     expect(SUN_SPOT_CYCLE.referencePeak).toEqual(expect.any(Number));
+  });
+
+  it('includes the major interplanetary spacecraft', () => {
+    expect(SPACECRAFT.length).toBeGreaterThanOrEqual(5);
+    expect(SPACECRAFT.map((s) => s.en)).toEqual(
+      expect.arrayContaining(['Voyager 1', 'Voyager 2', 'Pioneer 10', 'Pioneer 11', 'New Horizons'])
+    );
+  });
+
+  it('defines required spacecraft fields for linear extrapolation', () => {
+    for (const s of SPACECRAFT) {
+      expect(s).toEqual(expect.objectContaining({
+        name: expect.any(String),
+        en: expect.any(String),
+        color: expect.any(Number),
+        launchDate: expect.any(String),
+        status: expect.any(String),
+        referenceDate: expect.any(Number),
+        referenceDistanceAU: expect.any(Number),
+        longitudeDeg: expect.any(Number),
+        latitudeDeg: expect.any(Number),
+        radialSpeedAUperDay: expect.any(Number),
+        desc: expect.any(String),
+        fact: expect.any(String),
+        stats: expect.any(Object),
+      }));
+      expect(s.referenceDistanceAU).toBeGreaterThan(0);
+      expect(s.radialSpeedAUperDay).toBeGreaterThan(0);
+    }
   });
 });

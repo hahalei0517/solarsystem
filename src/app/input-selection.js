@@ -13,19 +13,23 @@ export function installSelectionHandlers({
   planetObjs,
   cometObjs,
   dwarfObjs,
+  spacecraftObjs,
   planets,
   comets,
   dwarfs,
+  spacecraft,
   setSoloPlanet,
   setSoloSun,
   setSoloComet,
   setSoloDwarf,
+  setSoloSpacecraft,
   clearSoloMode,
   flyToPlanet,
   showInfo,
   showMoonDetail,
   showCometInfo,
   showDwarfInfo,
+  showSpacecraftInfo,
   showSunInfo,
   updatePlanetListUI,
   soundApi,
@@ -58,6 +62,9 @@ export function installSelectionHandlers({
     if (state.showDwarfs) for (const dwo of dwarfObjs) if (dwo.group.visible) {
       list.push(dwo.mesh);
       if (trueScale && dwo.marker && dwo.marker.visible) list.push(dwo.marker);
+    }
+    if (state.showSpacecraft && trueScale) for (const so of spacecraftObjs) if (so.group.visible) {
+      if (so.marker && so.marker.visible) list.push(so.marker);
     }
     return list;
   }
@@ -203,6 +210,16 @@ export function installSelectionHandlers({
       }
       return;
     }
+    if (obj.userData && typeof obj.userData.spacecraftIdx === 'number') {
+      const sidx = obj.userData.spacecraftIdx;
+      // Toggle solo mode: clicking the already-soloed spacecraft exits solo.
+      if (state.soloSpacecraftIndex === sidx) {
+        clearSoloMode();
+      } else {
+        setSoloSpacecraft(sidx);
+      }
+      return;
+    }
     // Clicking a planet/moon clears any comet focus.
     state.cometFocusIndex = -1;
     let idx = -1;
@@ -249,6 +266,8 @@ export function installSelectionHandlers({
         label = bodyName(comets[obj.userData.cometIdx]);
       } else if (obj.userData && typeof obj.userData.dwarfIdx === 'number') {
         label = bodyName(dwarfs[obj.userData.dwarfIdx]);
+      } else if (obj.userData && typeof obj.userData.spacecraftIdx === 'number') {
+        label = bodyName(spacecraft[obj.userData.spacecraftIdx]);
       } else if (obj.userData && obj.userData.isMarker && typeof obj.userData.planetIdx === 'number') {
         label = bodyName(planets[obj.userData.planetIdx]);
       } else {

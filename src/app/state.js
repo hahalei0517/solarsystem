@@ -12,6 +12,7 @@ export function createSimulationState({ renderQuality = 'quality' } = {}) {
     showBelts: true,
     showComets: false,
     showDwarfs: false,
+    showSpacecraft: false,
     showEvents: false,
     showAxis: true, // show the spin-axis pole for the focused/soloed planet
     rotateAroundCursor: true, // when on, left-drag orbits the body under the cursor
@@ -22,8 +23,10 @@ export function createSimulationState({ renderQuality = 'quality' } = {}) {
     soloSun: false,
     cometFocusIndex: -1,
     dwarfFocusIndex: -1,
+    spacecraftFocusIndex: -1,
     soloCometIndex: -1,
     soloDwarfIndex: -1,
+    soloSpacecraftIndex: -1,
     visible: new Set([0,1,2,3,4,5,6,7]),
     eventFocus: null,
     eventLink: null,

@@ -33,6 +33,7 @@ export const TRANSLATIONS = {
     'layer.belts': '小行星',
     'layer.comets': '彗星',
     'layer.dwarfs': '矮行星',
+    'layer.spacecraft': '航天器',
     'layer.events': '天象事件',
     'layer.rotateCursor': '随光标旋转',
     'layer.axis': '地轴',
@@ -113,6 +114,7 @@ export const TRANSLATIONS = {
 
     'label.currentDistance': '📡 当前距日',
     'label.longitude': '📡 黄经',
+    'label.latitude': '📡 黄纬',
     'label.orbitProgress': '🛰️ 公转进度',
     'label.earthDistance': '🌍 与地球距离',
     'label.zodiac': '🔭 视方向星座',
@@ -130,6 +132,9 @@ export const TRANSLATIONS = {
     'label.earthAngle': '地球视角角距',
     'label.effect': '展示效果',
     'label.factPrefix': '💡',
+    'label.launchDate': '🚀 发射日期',
+    'label.status': '📡 任务状态',
+    'label.speed': '⚡ 速度',
 
     'compare.label': '直径对比地球',
     'compare.less': '< 0.1× 地球',
@@ -167,6 +172,7 @@ export const TRANSLATIONS = {
     'solo.planet': '独显：{{name}}',
     'solo.comet': '独显：{{name}}',
     'solo.dwarf': '独显：{{name}}',
+    'solo.spacecraft': '独显：{{name}}',
 
     'stats.类型': '类型',
     'stats.直径': '直径',
@@ -281,6 +287,7 @@ export const TRANSLATIONS = {
     'layer.belts': 'Asteroids',
     'layer.comets': 'Comets',
     'layer.dwarfs': 'Dwarf Planets',
+    'layer.spacecraft': 'Spacecraft',
     'layer.events': 'Sky Events',
     'layer.rotateCursor': 'Rotate around cursor',
     'layer.axis': 'Spin axis',
@@ -361,6 +368,7 @@ export const TRANSLATIONS = {
 
     'label.currentDistance': '📡 Distance from Sun',
     'label.longitude': '📡 Ecliptic Longitude',
+    'label.latitude': '📡 Ecliptic Latitude',
     'label.orbitProgress': '🛰️ Orbit Progress',
     'label.earthDistance': '🌍 Distance from Earth',
     'label.zodiac': '🔭 Constellation',
@@ -378,6 +386,9 @@ export const TRANSLATIONS = {
     'label.earthAngle': 'Apparent Angle from Earth',
     'label.effect': 'Effect',
     'label.factPrefix': '💡',
+    'label.launchDate': '🚀 Launch Date',
+    'label.status': '📡 Mission Status',
+    'label.speed': '⚡ Speed',
 
     'compare.label': 'Diameter vs Earth',
     'compare.less': '< 0.1× Earth',
@@ -415,6 +426,7 @@ export const TRANSLATIONS = {
     'solo.planet': 'Solo: {{name}}',
     'solo.comet': 'Solo: {{name}}',
     'solo.dwarf': 'Solo: {{name}}',
+    'solo.spacecraft': 'Solo: {{name}}',
 
     'stats.类型': 'Type',
     'stats.直径': 'Diameter',
@@ -708,6 +720,38 @@ export const BODY_TRANSLATIONS = {
       desc: 'Eris\'s discovery directly led to Pluto being reclassified as a dwarf planet — it is about 27% more massive than Pluto. It lies in the scattered disc with a highly inclined, eccentric orbit and has one moon, Dysnomia.',
       fact: 'Eris is more massive than Pluto, but like Pluto it is classified as a dwarf planet because it has not cleared its orbital neighborhood.',
       stats: { '类型': 'Dwarf planet', '直径': '≈ 2,326 km', '公转周期': '≈ 558 years', '近日点': '38.3 AU', '远日点': '≈ 97.6 AU', '轨道倾角': '44.04°' }
+    }
+  },
+  spacecraft: {
+    'Voyager 1': {
+      name: 'Voyager 1',
+      desc: ' humanity\'s most distant spacecraft, launched in 1977. In 2012 it became the first human-made object to cross the heliopause and enter interstellar space. It carries the Golden Record, a cultural time capsule of Earth, and is traveling toward the constellation Ophiuchus.',
+      fact: 'As of 2026, Voyager 1 is more than 160 AU from the Sun; a radio signal takes about 22 hours one way at the speed of light.',
+      stats: { '类型': 'Outer-planet / interstellar probe', '发射日期': '1977-09-05', '发射载具': 'Titan IIIE / Centaur', '任务目标': 'Jupiter, Saturn, outer solar system and interstellar space', '状态': 'Operating normally', '速度': '≈ 17 km/s' }
+    },
+    'Voyager 2': {
+      name: 'Voyager 2',
+      desc: 'The only spacecraft to have flown closely past all four giant planets — Jupiter, Saturn, Uranus and Neptune. It crossed the heliopause in 2018 and is heading into interstellar space toward the constellation Telescopium.',
+      fact: 'Voyager 2 revealed that the magnetic fields of the ice giants are highly tilted and offset from the planets\' rotation axes — the most asymmetric planetary magnetic fields known.',
+      stats: { '类型': 'Outer-planet / interstellar probe', '发射日期': '1977-08-20', '发射载具': 'Titan IIIE / Centaur', '任务目标': 'Jupiter, Saturn, Uranus, Neptune and interstellar space', '状态': 'Operating normally', '速度': '≈ 15 km/s' }
+    },
+    'Pioneer 10': {
+      name: 'Pioneer 10',
+      desc: 'The first spacecraft to traverse the asteroid belt and the first to make a close flyby of Jupiter. Contact was lost in 2003 as its power faded; it now drifts silently toward the constellation Taurus, leaving the solar system.',
+      fact: 'Pioneer 10 carried the famous Pioneer plaque, a gold-anodized aluminum plate depicting humans and the location of the Sun within the galaxy.',
+      stats: { '类型': 'Outer-planet / interstellar probe', '发射日期': '1972-03-03', '发射载具': 'Atlas-Centaur', '任务目标': 'Jupiter, outer solar system and interstellar space', '状态': 'Mission ended', '速度': '≈ 12 km/s' }
+    },
+    'Pioneer 11': {
+      name: 'Pioneer 11',
+      desc: 'The first spacecraft to fly by Saturn and the second to cross the asteroid belt. It is now traveling toward the constellation Scutum, having fallen silent in 1995 due to declining power.',
+      fact: 'Pioneer 11\'s discovery of Saturn\'s F ring paved the way for the detailed studies later performed by the Voyager missions.',
+      stats: { '类型': 'Outer-planet / interstellar probe', '发射日期': '1973-04-06', '发射载具': 'Atlas-Centaur', '任务目标': 'Jupiter, Saturn and interstellar space', '状态': 'Mission ended', '速度': '≈ 11 km/s' }
+    },
+    'New Horizons': {
+      name: 'New Horizons',
+      desc: 'The first spacecraft to fly by Pluto, returning high-resolution images of the heart-shaped ice plain Tombaugh Regio. In 2019 it flew by the Kuiper Belt object Arrokoth and continues its exploration of the outer solar system.',
+      fact: 'New Horizons was launched at the highest ever escape velocity from Earth, reaching the Moon\'s orbit just nine hours after liftoff.',
+      stats: { '类型': 'Kuiper Belt / outer solar system probe', '发射日期': '2006-01-19', '发射载具': 'Atlas V', '任务目标': 'Pluto and Kuiper Belt objects', '状态': 'Operating normally', '速度': '≈ 14 km/s' }
     }
   }
 };

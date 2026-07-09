@@ -43,6 +43,11 @@ test('app boots and primary interactions work', async ({ page }) => {
 
   await page.locator('#scale-seg button[data-scale="true"]').click();
   await expect(page.locator('#scale-seg button[data-scale="true"]')).toHaveClass(/active/);
+  // Spacecraft layer only renders in true-scale mode.
+  await page.locator('#layer-spacecraft').evaluate(el => { el.checked = true; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await expect(page.locator('#layer-spacecraft')).toBeChecked();
+  await page.locator('#layer-spacecraft').evaluate(el => { el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); });
+  await expect(page.locator('#layer-spacecraft')).not.toBeChecked();
   await page.locator('#scale-seg button[data-scale="schematic"]').click();
   await expect(page.locator('#scale-seg button[data-scale="schematic"]')).toHaveClass(/active/);
 
