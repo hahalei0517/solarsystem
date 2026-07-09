@@ -13,6 +13,11 @@ import { AU_IN_EARTH_DIAMETERS } from '../core/scale.js';
 export const SPACECRAFT_REFERENCE_DATE =
   (Date.UTC(2026, 6, 9, 12, 0, 0) - J2000.getTime()) / 86400000;
 
+function parseLaunchDays(launchDate) {
+  const [y, m, d] = launchDate.split('-').map(Number);
+  return (Date.UTC(y, m - 1, d, 12, 0, 0) - J2000.getTime()) / 86400000;
+}
+
 // Approximate current positions and radial speeds for well-known deep-space missions.
 // Distances are heliocentric; speeds are the outward radial component used for linear
 // extrapolation. Values are rounded from publicly available NASA mission status reports
@@ -129,6 +134,11 @@ export const SPACECRAFT = [
     },
   },
 ];
+
+// Attach J2000 day numbers for easy trajectory sampling.
+for (const s of SPACECRAFT) {
+  s.launchDays = parseLaunchDays(s.launchDate);
+}
 
 // Compute heliocentric ecliptic position in AU for the given spacecraft and simulation date.
 // Returns a Vector3 in the scene's ecliptic frame: ecliptic XZ plane, Y up.

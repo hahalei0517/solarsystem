@@ -1311,10 +1311,57 @@ for (let i = 0; i < DWARFS.length; i++) {
 // Shown only in true-scale mode: the craft are far too small to see at other scales,
 // and their distances would clutter the schematic/real views. A tinted ring marker
 // makes them locatable and clickable in true scale.
+// Simple schematic spacecraft model: a central body + high-gain dish + boom.
+// The model is intentionally oversized relative to real dimensions so it remains
+// visible when the camera flies in close in true-scale mode.
+function buildSpacecraftModel(color) {
+  const model = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xd0d4d8, roughness: 0.6, metalness: 0.35
+  });
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: color, roughness: 0.5, metalness: 0.2, emissive: color, emissiveIntensity: 0.15
+  });
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xc4a35a, roughness: 0.35, metalness: 0.6
+  });
+
+  // Main bus (hexagonal prism look via box + rotation).
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.18), bodyMat);
+  model.add(body);
+
+  // High-gain dish facing +X (roughly Earthward; the model rotates with the group).
+  const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 24), goldMat);
+  dish.rotation.z = Math.PI / 2;
+  dish.position.x = 0.18;
+  model.add(dish);
+  const dishFeed = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.12, 12), bodyMat);
+  dishFeed.rotation.z = Math.PI / 2;
+  dishFeed.position.x = 0.10;
+  model.add(dishFeed);
+
+  // Radioisotope thermoelectric generator boom extending -X.
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.42, 8), bodyMat);
+  boom.rotation.z = Math.PI / 2;
+  boom.position.x = -0.28;
+  model.add(boom);
+
+  // Small RTG block at the end of the boom.
+  const rtg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.06), accentMat);
+  rtg.position.x = -0.50;
+  model.add(rtg);
+
+  return model;
+}
+
 function buildSpacecraft(sp, idx) {
   const group = new THREE.Group();
   group.visible = false;
   scene.add(group);
+
+  // Schematic 3D model, always attached but only discernible when zoomed in close.
+  const model = buildSpacecraftModel(sp.color);
+  group.add(model);
 
   // True-scale locatability marker (child of group -> follows the spacecraft).
   const marker = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -1326,12 +1373,24 @@ function buildSpacecraft(sp, idx) {
   marker.userData = { spacecraftIdx: idx, isMarker: true };
   group.add(marker);
 
+  // Flight-path trail: sampled from launch date to the current simulation date.
+  // The line lives at scene root (heliocentric coords) and is rebuilt each frame
+  // so it visually indicates the outbound direction.
+  const trailGeo = new THREE.BufferGeometry();
+  const trailMat = new THREE.LineBasicMaterial({
+    color: sp.color, transparent: true, opacity: 0.55, depthWrite: false
+  });
+  const trail = new THREE.Line(trailGeo, trailMat);
+  trail.frustumCulled = false;
+  trail.visible = false;
+  scene.add(trail);
+
   const lab = document.createElement('div');
   lab.className = 'pl-label';
   lab.textContent = bodyName(sp);
   document.getElementById('planet-labels').appendChild(lab);
 
-  return { group, marker, label: lab, data: sp };
+  return { group, marker, trail, label: lab, data: sp };
 }
 for (let i = 0; i < SPACECRAFT.length; i++) {
   spacecraftObjs.push(buildSpacecraft(SPACECRAFT[i], i));
@@ -1798,6 +1857,26 @@ function tick() {
     const s = Math.max(1, camDist * k);
     so.marker.scale.set(s, s, 1);
     so.marker.visible = true;
+
+    // Flight-path trail from launch date to current sim date.
+    if (state.showTrails) {
+      const startDays = Math.min(so.data.launchDays, state.simDays);
+      const endDays = Math.max(so.data.launchDays, state.simDays);
+      const segments = 64;
+      if (!so.trailPositions) so.trailPositions = new Float32Array((segments + 1) * 3);
+      for (let i = 0; i <= segments; i++) {
+        const days = startDays + (endDays - startDays) * (i / segments);
+        const p = spacecraftPositionAU(so.data, days).multiplyScalar(AU_IN_EARTH_DIAMETERS);
+        so.trailPositions[i * 3] = p.x;
+        so.trailPositions[i * 3 + 1] = p.y;
+        so.trailPositions[i * 3 + 2] = p.z;
+      }
+      so.trail.geometry.setAttribute('position', new THREE.BufferAttribute(so.trailPositions, 3));
+      so.trail.geometry.setDrawRange(0, segments + 1);
+      so.trail.visible = true;
+    } else {
+      so.trail.visible = false;
+    }
 
     if (state.showLabels && (state.soloSpacecraftIndex === -1 || state.soloSpacecraftIndex === si)) {
       const tmp = pos.clone().project(camera);
@@ -2267,7 +2346,8 @@ function flyToDwarf(di) {
 function flyToSpacecraft(si) {
   const so = spacecraftObjs[si];
   const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(AU_IN_EARTH_DIAMETERS);
-  const dist = Math.max(1, pos.length() * 0.08);
+  // Fixed close-up distance so the schematic model is clearly visible.
+  const dist = 2.2;
   const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
   flyTo(pos.clone().add(offset), pos);
 }
