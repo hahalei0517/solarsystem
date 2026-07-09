@@ -1589,16 +1589,19 @@ function genKuiperBelt(totalN) {
   const nClassical = Math.floor(totalN * 0.62);
   const nScattered = totalN - nPlutino - nClassical;
   const out = [];
-  // Plutinos: reddish, ~39.4 AU, e up to 0.2, i up to 15°.
+  // Plutinos: reddish, ~39.4 AU, moderate eccentricity, moderate inclination.
+  // Real Plutinos can dip inside Neptune's orbit near perihelion (protected by the 2:3 resonance),
+  // but visually that reads as "Kuiper belt overlaps Neptune". We cap e so the inner extent stays
+  // just outside Neptune's ~30 AU orbit.
   for (let i = 0; i < nPlutino; i++) {
     out.push({
-      a: 38.8 + Math.random() * 1.2,
-      e: 0.08 + Math.random() * 0.16,
+      a: 39.0 + Math.random() * 1.6,        // 39.0 – 40.6 AU
+      e: 0.05 + Math.random() * 0.12,       // e ≤ 0.17 → perihelion ≥ ~32.4 AU
       peri: Math.random() * Math.PI * 2,
-      inc: (Math.random() - 0.5) * 0.5, // ±15° or so
+      inc: (Math.random() - 0.5) * 0.5,     // ±15° or so
       phase: Math.random() * Math.PI * 2,
       size: 0.6 + Math.random() * 0.9,
-      color: [0.72, 0.58, 0.48], // red-brown
+      color: [0.72, 0.58, 0.48],
     });
   }
   // Classical belt: mix of cold (blue-gray, low i) and hot (redder, higher i).
@@ -1614,11 +1617,15 @@ function genKuiperBelt(totalN) {
       color: cold ? [0.55, 0.62, 0.75] : [0.68, 0.60, 0.56],
     });
   }
-  // Scattered disk: dim gray, wide range 50–90 AU, high e/i.
+  // Scattered disk: dim gray, wide range 50–90 AU, high e/i. Cap e so perihelion
+  // remains outside Neptune (~30 AU) to avoid visual overlap with the giant planets.
   for (let i = 0; i < nScattered; i++) {
+    const a = 50.0 + Math.random() * 40.0;
+    // Maximum e such that a(1-e) ≥ 33 AU (a bit past Neptune's aphelion 30.3 AU).
+    const eMax = Math.min(0.55, 1 - 33 / a);
     out.push({
-      a: 50.0 + Math.random() * 40.0,
-      e: 0.15 + Math.random() * 0.45,
+      a: a,
+      e: 0.15 + Math.random() * Math.max(0.05, eMax - 0.15),
       peri: Math.random() * Math.PI * 2,
       inc: (Math.random() - 0.5) * 1.2, // up to ~35°
       phase: Math.random() * Math.PI * 2,
@@ -1681,18 +1688,17 @@ function updateBelt(im, data, sizeScale, schematicScale = 1.15) {
 
 // ---------- Oort cloud ----------
 // A schematic spherical shell of icy particles far beyond the Kuiper belt.
-// True heliocentric distance ~2,000–50,000 AU, but that scale is orders of magnitude beyond
-// even the true-scale scene budget. We render it as a fixed-distance backdrop shell that
-// scales with the current mode: in schematic/real it forms a faint outer bubble; in true
-// mode it's pushed out with the star background.
+// Real heliocentric distance is 2,000–50,000+ AU — orders of magnitude beyond both the
+// real-scale camera range (~600 AU) and the true-scale sky sphere. We therefore build
+// a normalised unit shell (inner=1.0, outer=1.6) and let applyScaleMode() rescale it to
+// a position that (a) sits well outside the Kuiper belt in every mode and (b) stays
+// inside the star background. The educational "2000–50000 AU" claim lives in tooltips
+// and translations, not in the raw scene coords.
 function buildOortCloud(count) {
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
-  // Uniform spherical shell between innerR..outerR (scene units for schematic mode).
-  // These base radii sit just beyond Neptune's schematic orbit (~5.3) but stay well inside
-  // the starfield (~200-400), so the shell reads as "太阳系外壳" without occluding stars.
-  const innerR = 8.0, outerR = 12.0;
+  const innerR = 1.0, outerR = 1.6; // normalised: applyScaleMode() scales this to per-mode distance
   for (let i = 0; i < count; i++) {
     // Uniform on shell: sample on a sphere, then radius in [innerR, outerR].
     const u = Math.random() * 2 - 1;
@@ -1710,8 +1716,8 @@ function buildOortCloud(count) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const mat = new THREE.PointsMaterial({
-    size: 0.03, vertexColors: true, transparent: true, opacity: 0.55,
-    sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending
+    size: 0.6, vertexColors: true, transparent: true, opacity: 0.55,
+    sizeAttenuation: false, depthWrite: false, blending: THREE.AdditiveBlending
   });
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
@@ -1838,19 +1844,23 @@ function applyScaleMode() {
   starfield.scale.setScalar(bg);
   galacticDust.scale.setScalar(bg);
   brightStarsGroup.scale.setScalar(bg);
-  // Oort cloud: sits in schematic space (built at ~8-12 units). Scale up per mode so the
-  // shell always reads as "outside Neptune" but stays inside the star background.
+  // Oort cloud sits far outside the Kuiper belt (real ≈ 2,000–50,000 AU). Its geometry is
+  // a normalised shell (1.0–1.6); we rescale so the inner edge always sits well beyond the
+  // outermost Kuiper particle in the current scale mode.
+  //   - schematic: Kuiper reaches ~16 units (a≈90 AU × 0.177). Push Oort inner to ~24 units.
+  //   - real:      Kuiper reaches ~90 units (= 90 AU). Push Oort inner to ~200 units,
+  //                still safely inside the 450-unit sky sphere.
+  //   - true:      Kuiper reaches ~1.53M units (a≈90 AU × 11740, plus eccentric aphelion).
+  //                Sky sphere sits at 3.6M units (=450×8000). Push Oort inner to ~1.88M
+  //                units (~160 AU) so it sits comfortably outside Kuiper, with the outer
+  //                edge (~256 AU ≈ 3.0M units) still inside the sky sphere.
   if (oortCloud) {
     if (isTrue) {
-      // In true scale, real Kuiper belt is at ~50 AU (~590k units). Push Oort shell to well
-      // outside that but still much closer than the starfield.
-      oortCloud.scale.setScalar(AU_IN_EARTH_DIAMETERS * 0.75);
+      oortCloud.scale.setScalar(AU_IN_EARTH_DIAMETERS * 160);   // ≈ 1.88M inner, 3.01M outer
     } else if (state.scaleMode === 'real') {
-      // Real mode: 1 unit = 1 AU. Real Oort inner edge ~2000 AU is far outside our view,
-      // so schematic-style shell at ~10 units reads as "太阳系外围".
-      oortCloud.scale.setScalar(6.0);
+      oortCloud.scale.setScalar(180);                            // 180–288 AU (Kuiper max ~130 AU)
     } else {
-      oortCloud.scale.setScalar(1.0);
+      oortCloud.scale.setScalar(24);                             // 24–38.4 units in schematic
     }
   }
   skySphere.material.side = isTrue ? THREE.DoubleSide : THREE.BackSide;
