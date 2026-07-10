@@ -2440,6 +2440,9 @@ function showHistoricInfo(ev) {
   swatch.style.color = '#ffd278';
   document.getElementById('info-name').textContent = ev.name;
   document.getElementById('info-desc').textContent = ev.desc;
+  // Historic event cards never show a planet/dwarf fact; hide any leftover.
+  const factEl = document.getElementById('info-fact');
+  if (factEl) factEl.style.display = 'none';
   const dl = document.getElementById('info-stats');
   dl.innerHTML = `<dt>${t('label.type')}</dt><dd>${t('historic.type.anchor')}</dd>`
     + `<dt>${t('label.date')}</dt><dd>${formatDate(ev.days)}</dd>`;
@@ -2538,12 +2541,9 @@ function focusEventVisual(ev) {
   state.soloIndex = -1;
   state.focusIndex = -1;
   state.cometFocusIndex = -1;
-  // Hide the event-card summary while the info-card shows the focused event details —
-  // otherwise on mobile both would stack above the timeline and the info card would collide
-  // with the timeline that lifted to make room for the summary.
-  const ecard = document.getElementById('event-card');
-  if (ecard) { ecard.classList.add('hidden'); layoutEventCard(); }
-  showEventInfo(ev);
+  // Close any leftover info card; event details now live only as timeline labels,
+  // not as a popup panel.
+  closeInfoPanel();
   updatePlanetListUI();
 
   const earthPos = keplerPos(PLANETS[2], state.simDays, semiMajor(PLANETS[2]));
@@ -2592,6 +2592,9 @@ function showEventInfo(ev) {
   swatch.style.color = cc;
   document.getElementById('info-name').textContent = `${ev.label} · ${ev.typeLabel}`;
   document.getElementById('info-desc').textContent = eventDescription(ev);
+  // Event cards never show a planet/dwarf fact; ensure the previous one is hidden.
+  const factEl = document.getElementById('info-fact');
+  if (factEl) factEl.style.display = 'none';
   const dl = document.getElementById('info-stats');
   const angleLabel = ev.typeCode === 'planetConjunction' ? t('label.angle') : t('label.earthAngle');
   const bodies = ev.typeCode === 'planetConjunction'
@@ -2701,7 +2704,10 @@ function renderEventMarkers() {
       lastBelow = leftNum;
     }
     el.classList.toggle('active', state.eventFocus === ev);
-    el.addEventListener('click', () => focusEventVisual(ev));
+    el.addEventListener('click', () => {
+      if (state.eventFocus === ev) exitEventView();
+      else focusEventVisual(ev);
+    });
     timeline.appendChild(el);
   }
   renderHistoricalMarkers();
