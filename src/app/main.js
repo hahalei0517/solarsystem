@@ -56,8 +56,8 @@ const QUALITY_PRESETS = {
     shadows: true,
     starDrawCount: 4000,
     asteroidDrawCount: 800,
-    kuiperDrawCount: 900,
-    oortDrawCount: 2500,
+    kuiperDrawCount: 500,
+    oortDrawCount: 1200,
     galacticDustDrawCount: 350,
   },
   performance: {
@@ -65,8 +65,8 @@ const QUALITY_PRESETS = {
     shadows: false,
     starDrawCount: 1500,
     asteroidDrawCount: 250,
-    kuiperDrawCount: 200,
-    oortDrawCount: 600,
+    kuiperDrawCount: 150,
+    oortDrawCount: 400,
     galacticDustDrawCount: 120,
   },
 };
@@ -1735,27 +1735,6 @@ function buildBelt(data, color, sizeScale, useInstanceColor = false) {
 const asteroidBelt = buildBelt(asteroidData, 0x7d6f5e, 1.0);
 const kuiperBelt   = buildBelt(kuiperData,  0xffffff,  1.2, true); // per-instance color
 scene.add(asteroidBelt); scene.add(kuiperBelt);
-
-// Faint wireframe shells marking the Kuiper-belt extent (real AU dimensions).
-// Helpful in real/true scale where individual particles are too small/sparse to see.
-function buildKuiperShell() {
-  const group = new THREE.Group();
-  const shellMat = new THREE.MeshBasicMaterial({
-    color: 0x9aaecd, transparent: true, opacity: 0.14,
-    wireframe: true, depthWrite: false, blending: THREE.AdditiveBlending
-  });
-  // Inner boundary ~Neptune resonance (≈38 AU), outer boundary ~scattered disk (≈90 AU).
-  const inner = new THREE.Mesh(new THREE.SphereGeometry(1.0, 48, 24), shellMat.clone());
-  inner.scale.setScalar(38);
-  const outer = new THREE.Mesh(new THREE.SphereGeometry(1.0, 48, 24), shellMat.clone());
-  outer.material.opacity = 0.07;
-  outer.scale.setScalar(90);
-  group.add(inner, outer);
-  group.visible = false;
-  return group;
-}
-const kuiperShell = buildKuiperShell();
-scene.add(kuiperShell);
 const _mtx = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _v = new THREE.Vector3();
@@ -1763,11 +1742,6 @@ const _s = new THREE.Vector3();
 
 function updateBelt(im, data, sizeScale, schematicScale = 1.15) {
   const count = Math.min(data.length, im.count);
-  // In real/true scale the belt particles are tiny relative to the scene; exaggerate
-  // their size so the populations remain visible as a diffuse band/cloud.
-  const modeSizeScale = state.scaleMode === 'schematic'
-    ? sizeScale
-    : (state.scaleMode === 'real' ? sizeScale * 3.5 : sizeScale * 5.0);
   for (let i = 0; i < count; i++) {
     const d = data[i];
     const aScale = state.scaleMode === 'true'
@@ -1782,7 +1756,7 @@ function updateBelt(im, data, sizeScale, schematicScale = 1.15) {
     const xr = xo*Math.cos(d.peri) - yo*Math.sin(d.peri);
     const yr = xo*Math.sin(d.peri) + yo*Math.cos(d.peri);
     _v.set(xr, yr*Math.sin(d.inc), yr*Math.cos(d.inc));
-    _s.set(d.size, d.size, d.size).multiplyScalar(modeSizeScale);
+    _s.set(d.size, d.size, d.size).multiplyScalar(sizeScale);
     _mtx.compose(_v, _q, _s);
     im.setMatrixAt(i, _mtx);
   }
@@ -1827,28 +1801,8 @@ function buildOortCloud(count) {
   points.visible = false; // toggled by state.showOortCloud
   return points;
 }
-const oortCloud = buildOortCloud(QUALITY_PRESETS.quality.oortDrawCount);
+const oortCloud = buildOortCloud(1200);
 scene.add(oortCloud);
-
-// Faint wireframe shells that mark the inner/outer boundary of the Oort cloud in real/true
-// scale modes, where the individual particles are too sparse to read as a cloud.
-function buildOortShell() {
-  const group = new THREE.Group();
-  const shellMat = new THREE.MeshBasicMaterial({
-    color: 0x8fb8e0, transparent: true, opacity: 0.12,
-    wireframe: true, depthWrite: false, blending: THREE.AdditiveBlending
-  });
-  const inner = new THREE.Mesh(new THREE.SphereGeometry(1.0, 48, 24), shellMat.clone());
-  inner.scale.setScalar(1.0);
-  const outer = new THREE.Mesh(new THREE.SphereGeometry(1.0, 48, 24), shellMat.clone());
-  outer.material.opacity = 0.06;
-  outer.scale.setScalar(1.6);
-  group.add(inner, outer);
-  group.visible = false;
-  return group;
-}
-const oortShell = buildOortShell();
-scene.add(oortShell);
 
 function applyRenderQuality() {
   const quality = currentQuality();
@@ -1985,10 +1939,6 @@ function applyScaleMode() {
     } else {
       oortCloud.scale.setScalar(24);                             // 24–38.4 units in schematic
     }
-  }
-  if (oortShell) oortShell.scale.copy(oortCloud.scale);
-  if (kuiperShell) {
-    kuiperShell.scale.setScalar(isTrue ? AU_IN_EARTH_DIAMETERS : (state.scaleMode === 'real' ? 1 : SCHEMATIC_AU_SCALE));
   }
   skySphere.material.side = isTrue ? THREE.DoubleSide : THREE.BackSide;
   skySphere.material.opacity = isTrue ? 0.8 : 0.55;
@@ -2194,26 +2144,8 @@ function tick() {
 
   asteroidBelt.visible = state.showBelts;
   kuiperBelt.visible = state.showBelts;
-  kuiperShell.visible = state.showBelts && state.scaleMode !== 'schematic';
   oortCloud.visible = state.showOortCloud;
-  oortShell.visible = state.showOortCloud && state.scaleMode !== 'schematic';
   eclipticPlane.visible = state.showEcliptic;
-
-  // In real/true scale the Oort particles are very sparse; make them larger and
-  // attenuate by world size so they read as a diffuse shell rather than tiny specks.
-  if (state.scaleMode === 'schematic') {
-    oortCloud.material.size = 0.6;
-    oortCloud.material.sizeAttenuation = false;
-    oortCloud.material.opacity = 0.55;
-  } else if (state.scaleMode === 'real') {
-    oortCloud.material.size = 2.8;
-    oortCloud.material.sizeAttenuation = true;
-    oortCloud.material.opacity = 0.75;
-  } else {
-    oortCloud.material.size = AU_IN_EARTH_DIAMETERS * 32; // ~375k Earth diameters
-    oortCloud.material.sizeAttenuation = true;
-    oortCloud.material.opacity = 0.75;
-  }
 
   // Update comets
   for (let ci = 0; ci < cometObjs.length; ci++) {
