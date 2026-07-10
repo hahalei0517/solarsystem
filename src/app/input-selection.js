@@ -67,8 +67,16 @@ export function installSelectionHandlers({
       if (trueScale) {
         if (so.marker && so.marker.visible) list.push(so.marker);
       } else if (so.model && so.model.visible) {
-        // The model is a Group of meshes; raycast recursively against it.
-        list.push(so.model);
+        // The model is a Group of meshes; add each mesh so non-recursive raycasting
+        // can hit it, and tag the mesh with the spacecraft index found on the group.
+        const idx = so.model.userData.spacecraftIdx;
+        so.model.traverse(child => {
+          if (child.isMesh) {
+            child.userData.spacecraftIdx = idx;
+            child.userData.isSpacecraftModel = true;
+            list.push(child);
+          }
+        });
       }
     }
     return list;

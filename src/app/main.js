@@ -1524,57 +1524,76 @@ for (let i = 0; i < DWARFS.length; i++) {
 
 // ---------- Interplanetary spacecraft ----------
 // Visible in all scale modes. In schematic/real mode the craft are shown as small
-// stylised 3D models (dish + bus) and scaled up so they remain visible among the
-// planets. In true-scale mode they are far too small to see, so we fall back to a
-// tinted ring marker and a short particle trail.
+// stylised 3D models and scaled up so they remain visible among the planets. In
+// true-scale mode they are far too small to see, so we fall back to a tinted ring
+// marker and a short particle trail.
+// Schematic mode is not a uniform AU scale; we match the outer-planet layout so
+// spacecraft sit at believable distances relative to Neptune (see SCHEMATIC_AU_SCALE).
+const SCHEMATIC_AU_SCALE = PLANETS[7].orbit / PLANETS[7].realAU; // ≈ 5.3 / 30.1 ≈ 0.176
+
 function makeSpacecraftModel(colorHex) {
   const model = new THREE.Group();
   const color = new THREE.Color(colorHex);
+  const metal = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.35, metalness: 0.65 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.45, metalness: 0.55 });
+  const goldFoil = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, metalness: 0.4 });
 
-  // Main bus: a small hexagonal prism.
-  const busGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 6);
-  busGeo.rotateZ(Math.PI / 2);
-  const busMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.4 });
-  const bus = new THREE.Mesh(busGeo, busMat);
+  // Main bus: a rectangular equipment box.
+  const bus = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, 0.08), goldFoil);
   model.add(bus);
 
-  // High-gain antenna dish facing +X.
-  const dishGeo = new THREE.ConeGeometry(0.08, 0.03, 32, 1, true);
+  // High-gain parabolic dish facing +X (forward along velocity after lookAt).
+  const dishGeo = new THREE.SphereGeometry(0.12, 32, 16, 0, Math.PI * 2, 0, 0.55);
   dishGeo.rotateZ(-Math.PI / 2);
-  const dishMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.6, side: THREE.DoubleSide });
-  const dish = new THREE.Mesh(dishGeo, dishMat);
-  dish.position.x = 0.07;
+  const dish = new THREE.Mesh(dishGeo, metal);
+  dish.position.x = 0.10;
   model.add(dish);
 
-  // Dish feed.
+  // Dish feed struts.
+  const strutGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.10, 6);
+  strutGeo.rotateZ(Math.PI / 2);
+  for (let k = 0; k < 3; k++) {
+    const strut = new THREE.Mesh(strutGeo, darkMetal);
+    const ang = (k / 3) * Math.PI * 2;
+    strut.position.set(0.05, Math.cos(ang) * 0.06, Math.sin(ang) * 0.06);
+    model.add(strut);
+  }
+
+  // Central feed horn.
   const feed = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012, 0.012, 0.04, 8),
-    new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4, metalness: 0.5 })
+    new THREE.CylinderGeometry(0.015, 0.012, 0.05, 12),
+    darkMetal
   );
   feed.rotation.z = Math.PI / 2;
-  feed.position.x = 0.05;
+  feed.position.x = 0.04;
   model.add(feed);
 
-  // Two small science booms / RTG fins along -X.
-  const boomGeo = new THREE.BoxGeometry(0.10, 0.015, 0.015);
-  const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6, metalness: 0.3 });
-  const boom1 = new THREE.Mesh(boomGeo, boomMat);
-  boom1.position.set(-0.06, 0.04, 0);
-  const boom2 = new THREE.Mesh(boomGeo, boomMat);
-  boom2.position.set(-0.06, -0.04, 0);
+  // RTG power cylinder at the rear (-X).
+  const rtg = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.025, 0.16, 16),
+    metal
+  );
+  rtg.rotation.z = Math.PI / 2;
+  rtg.position.x = -0.10;
+  model.add(rtg);
+
+  // Two instrument booms extending perpendicular to the dish axis.
+  const boomGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.22, 6);
+  const boom1 = new THREE.Mesh(boomGeo, darkMetal);
+  boom1.position.set(-0.02, 0.12, 0);
+  const boom2 = new THREE.Mesh(boomGeo, darkMetal);
+  boom2.position.set(-0.02, -0.12, 0);
   model.add(boom1, boom2);
 
-  // Tiny glow at the bus center for visual focus.
+  // Soft glow at the bus center for visual focus and to read in deep space.
   const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.015, 12, 12),
+    new THREE.SphereGeometry(0.018, 12, 12),
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })
   );
   model.add(glow);
 
-  // Orient so the dish (+X) points along the spacecraft's outbound velocity vector
-  // once the model is added to the group; pre-rotate to align +X with +Z so a later
-  // lookAt(futurePosition) makes the dish face forward.
-  model.rotation.y = Math.PI / 2;
+  // Tiny halo sprite facing the camera (added later per-frame if needed; kept simple here).
+  model.rotation.y = Math.PI / 2; // align +X forward for lookAt
   return model;
 }
 
@@ -2258,18 +2277,17 @@ function tick() {
 
     const isTrue = state.scaleMode === 'true';
     const isReal = state.scaleMode === 'real';
-    // Scene units per AU for the current scale mode.
-    const scaleFactor = isTrue ? AU_IN_EARTH_DIAMETERS : (isReal ? 1 : sceneUnitsPerAU('schematic'));
+    // Scene units per AU for the current scale mode. Schematic uses the outer-planet
+    // layout scale so spacecraft sit at believable distances relative to Neptune.
+    const scaleFactor = isTrue ? AU_IN_EARTH_DIAMETERS : (isReal ? 1 : SCHEMATIC_AU_SCALE);
     const posAU = spacecraftPositionAU(so.data, state.simDays);
     const pos = posAU.clone().multiplyScalar(scaleFactor);
     so.group.position.copy(pos);
 
     // Flight direction: point the spacecraft toward where it will be a short time ahead.
-    // In true-scale the model is hidden; in other modes the model points along velocity.
     const futureDays = 30;
     const futurePos = spacecraftPositionAU(so.data, state.simDays + futureDays).multiplyScalar(scaleFactor);
     const lookTarget = futurePos.clone();
-    // Keep the model upright-ish while looking forward.
     const up = new THREE.Vector3(0, 1, 0);
     so.model.lookAt(lookTarget);
     so.model.up.copy(up);
@@ -2283,12 +2301,12 @@ function tick() {
       so.marker.visible = true;
     } else {
       // Schematic/real: show a stylised spacecraft model scaled so it stays visible.
-      // Base model radius ~0.08; we exaggerate slightly at large distances but keep it
-      // smaller than a planet.
+      // Base model bounding radius ~0.16; apparent size grows slowly with distance
+      // so the craft remains clickable but never rivals a planet.
       const camDist = camera.position.distanceTo(pos);
       const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
-      const apparent = Math.max(0.12, camDist * k * 0.5);
-      so.model.scale.setScalar(apparent / 0.08);
+      const apparent = Math.max(0.18, camDist * k * 0.55);
+      so.model.scale.setScalar(apparent / 0.16);
       so.model.visible = true;
     }
 
@@ -2782,12 +2800,12 @@ function flyToSpacecraft(si) {
   const so = spacecraftObjs[si];
   const isTrue = state.scaleMode === 'true';
   const isReal = state.scaleMode === 'real';
-  const scaleFactor = isTrue ? AU_IN_EARTH_DIAMETERS : (isReal ? 1 : sceneUnitsPerAU('schematic'));
+  const scaleFactor = isTrue ? AU_IN_EARTH_DIAMETERS : (isReal ? 1 : SCHEMATIC_AU_SCALE);
   const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(scaleFactor);
   // Pull close enough to see the model/trail; cap minimum distance.
   const dist = isTrue
     ? Math.max(2.5, pos.length() * 0.04)
-    : Math.max(0.25, pos.length() * 0.15);
+    : Math.max(0.35, pos.length() * 0.25);
   const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
   flyTo(pos.clone().add(offset), pos);
 }
