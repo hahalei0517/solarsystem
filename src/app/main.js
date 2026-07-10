@@ -2541,9 +2541,12 @@ function focusEventVisual(ev) {
   state.soloIndex = -1;
   state.focusIndex = -1;
   state.cometFocusIndex = -1;
-  // Close any leftover info card; event details now live only as timeline labels,
-  // not as a popup panel.
-  closeInfoPanel();
+  // Hide the event-card summary while the info-card shows the focused event details —
+  // otherwise on mobile both would stack above the timeline and the info card would collide
+  // with the timeline that lifted to make room for the summary.
+  const ecard = document.getElementById('event-card');
+  if (ecard) { ecard.classList.add('hidden'); layoutEventCard(); }
+  showEventInfo(ev);
   updatePlanetListUI();
 
   const earthPos = keplerPos(PLANETS[2], state.simDays, semiMajor(PLANETS[2]));
@@ -2624,7 +2627,7 @@ function exitEventView() {
   if (state.showEvents) showEventCardSummary();
 }
 
-function scanEvents() {
+function scanEvents({ showSummary = true } = {}) {
   const sc = document.getElementById('scrubber');
   const min = +sc.min, max = +sc.max;
   eventMarkers = scanSkyEvents({ min, max, planets: PLANETS, ephem: EPHEM });
@@ -2632,7 +2635,7 @@ function scanEvents() {
   disposeEventVisuals();
   renderEventMarkers();
   sound.event();
-  showEventCardSummary();
+  if (showSummary) showEventCardSummary();
 }
 
 // Event card (below the timeline) — replaces the old alert. Summary mode shows a hint +
@@ -2704,10 +2707,7 @@ function renderEventMarkers() {
       lastBelow = leftNum;
     }
     el.classList.toggle('active', state.eventFocus === ev);
-    el.addEventListener('click', () => {
-      if (state.eventFocus === ev) exitEventView();
-      else focusEventVisual(ev);
-    });
+    el.addEventListener('click', () => focusEventVisual(ev));
     timeline.appendChild(el);
   }
   renderHistoricalMarkers();

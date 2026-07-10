@@ -69,7 +69,9 @@ export function createControlsController({
       if (soundBtn) soundBtn.textContent = state.soundOn ? '🔊' : '🔇';
     } else if (key === 'showEvents') {
       state.showEvents = enabled;
-      if (enabled) scanEvents(); else clearEvents();
+      // Toggling the layer on should only render the timeline markers, not pop up
+      // the "N events scanned" summary card.
+      if (enabled) scanEvents({ showSummary: false }); else clearEvents();
     } else {
       state[key] = enabled;
       soundApi.uiTick();
