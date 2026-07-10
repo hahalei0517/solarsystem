@@ -2623,8 +2623,7 @@ function exitEventView() {
   closeInfoPanel();
   updatePlanetListUI();
   renderEventMarkers();
-  // Restore the event-card summary iff the events layer is still enabled.
-  if (state.showEvents) showEventCardSummary();
+  // Do not restore the event-card summary; the user explicitly exited the event view.
 }
 
 function scanEvents({ showSummary = true } = {}) {
