@@ -1523,13 +1523,71 @@ for (let i = 0; i < DWARFS.length; i++) {
 }
 
 // ---------- Interplanetary spacecraft ----------
-// Shown only in true-scale mode: the craft are far too small to see at other scales,
-// and their distances would clutter the schematic/real views. A tinted ring marker
-// makes them locatable and clickable in true scale.
+// Visible in all scale modes. In schematic/real mode the craft are shown as small
+// stylised 3D models (dish + bus) and scaled up so they remain visible among the
+// planets. In true-scale mode they are far too small to see, so we fall back to a
+// tinted ring marker and a short particle trail.
+function makeSpacecraftModel(colorHex) {
+  const model = new THREE.Group();
+  const color = new THREE.Color(colorHex);
+
+  // Main bus: a small hexagonal prism.
+  const busGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 6);
+  busGeo.rotateZ(Math.PI / 2);
+  const busMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.4 });
+  const bus = new THREE.Mesh(busGeo, busMat);
+  model.add(bus);
+
+  // High-gain antenna dish facing +X.
+  const dishGeo = new THREE.ConeGeometry(0.08, 0.03, 32, 1, true);
+  dishGeo.rotateZ(-Math.PI / 2);
+  const dishMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.6, side: THREE.DoubleSide });
+  const dish = new THREE.Mesh(dishGeo, dishMat);
+  dish.position.x = 0.07;
+  model.add(dish);
+
+  // Dish feed.
+  const feed = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.04, 8),
+    new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.4, metalness: 0.5 })
+  );
+  feed.rotation.z = Math.PI / 2;
+  feed.position.x = 0.05;
+  model.add(feed);
+
+  // Two small science booms / RTG fins along -X.
+  const boomGeo = new THREE.BoxGeometry(0.10, 0.015, 0.015);
+  const boomMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6, metalness: 0.3 });
+  const boom1 = new THREE.Mesh(boomGeo, boomMat);
+  boom1.position.set(-0.06, 0.04, 0);
+  const boom2 = new THREE.Mesh(boomGeo, boomMat);
+  boom2.position.set(-0.06, -0.04, 0);
+  model.add(boom1, boom2);
+
+  // Tiny glow at the bus center for visual focus.
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.015, 12, 12),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  model.add(glow);
+
+  // Orient so the dish (+X) points along the spacecraft's outbound velocity vector
+  // once the model is added to the group; pre-rotate to align +X with +Z so a later
+  // lookAt(futurePosition) makes the dish face forward.
+  model.rotation.y = Math.PI / 2;
+  return model;
+}
+
 function buildSpacecraft(sp, idx) {
   const group = new THREE.Group();
   group.visible = false;
   scene.add(group);
+
+  // 3D model used in schematic/real modes.
+  const model = makeSpacecraftModel(sp.color);
+  model.visible = false;
+  model.userData = { spacecraftIdx: idx, isModel: true };
+  group.add(model);
 
   // True-scale locatability marker (child of group -> follows the spacecraft).
   const marker = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -1561,7 +1619,7 @@ function buildSpacecraft(sp, idx) {
   lab.textContent = bodyName(sp);
   document.getElementById('planet-labels').appendChild(lab);
 
-  return { group, marker, trail, trailCount, label: lab, data: sp };
+  return { group, model, marker, trail, trailCount, label: lab, data: sp };
 }
 for (let i = 0; i < SPACECRAFT.length; i++) {
   spacecraftObjs.push(buildSpacecraft(SPACECRAFT[i], i));
@@ -2183,11 +2241,10 @@ function tick() {
     }
   }
 
-  // Update spacecraft (true-scale only)
+  // Update spacecraft (all scale modes)
   for (let si = 0; si < spacecraftObjs.length; si++) {
     const so = spacecraftObjs[si];
-    const visible = state.scaleMode === 'true'
-      && state.showSpacecraft
+    const visible = state.showSpacecraft
       && (state.soloSpacecraftIndex === -1 || state.soloSpacecraftIndex === si)
       && !state.soloSun
       && state.soloIndex === -1
@@ -2195,17 +2252,45 @@ function tick() {
       && state.soloDwarfIndex === -1;
     so.group.visible = visible;
     so.label.style.display = 'none';
+    so.model.visible = false;
+    so.marker.visible = false;
     if (!visible) continue;
 
-    const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(AU_IN_EARTH_DIAMETERS);
+    const isTrue = state.scaleMode === 'true';
+    const isReal = state.scaleMode === 'real';
+    // Scene units per AU for the current scale mode.
+    const scaleFactor = isTrue ? AU_IN_EARTH_DIAMETERS : (isReal ? 1 : sceneUnitsPerAU('schematic'));
+    const posAU = spacecraftPositionAU(so.data, state.simDays);
+    const pos = posAU.clone().multiplyScalar(scaleFactor);
     so.group.position.copy(pos);
 
-    // True-scale locatability marker: fixed apparent size regardless of distance.
-    const camDist = camera.position.distanceTo(pos);
-    const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
-    const s = Math.max(1, camDist * k);
-    so.marker.scale.set(s, s, 1);
-    so.marker.visible = true;
+    // Flight direction: point the spacecraft toward where it will be a short time ahead.
+    // In true-scale the model is hidden; in other modes the model points along velocity.
+    const futureDays = 30;
+    const futurePos = spacecraftPositionAU(so.data, state.simDays + futureDays).multiplyScalar(scaleFactor);
+    const lookTarget = futurePos.clone();
+    // Keep the model upright-ish while looking forward.
+    const up = new THREE.Vector3(0, 1, 0);
+    so.model.lookAt(lookTarget);
+    so.model.up.copy(up);
+
+    if (isTrue) {
+      // True-scale locatability marker: fixed apparent size regardless of distance.
+      const camDist = camera.position.distanceTo(pos);
+      const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
+      const s = Math.max(1, camDist * k);
+      so.marker.scale.set(s, s, 1);
+      so.marker.visible = true;
+    } else {
+      // Schematic/real: show a stylised spacecraft model scaled so it stays visible.
+      // Base model radius ~0.08; we exaggerate slightly at large distances but keep it
+      // smaller than a planet.
+      const camDist = camera.position.distanceTo(pos);
+      const k = 16 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2) / window.innerHeight;
+      const apparent = Math.max(0.12, camDist * k * 0.5);
+      so.model.scale.setScalar(apparent / 0.08);
+      so.model.visible = true;
+    }
 
     // Short particle trail near the spacecraft, tied to the label toggle.
     if (state.showLabels && (state.soloSpacecraftIndex === -1 || state.soloSpacecraftIndex === si)) {
@@ -2214,7 +2299,7 @@ function tick() {
       for (let i = 0; i < so.trailCount; i++) {
         const f = i / (so.trailCount - 1);
         const days = state.simDays - spanDays * (1 - f);
-        const p = spacecraftPositionAU(so.data, days).multiplyScalar(AU_IN_EARTH_DIAMETERS);
+        const p = spacecraftPositionAU(so.data, days).multiplyScalar(scaleFactor);
         positions[i * 3] = p.x;
         positions[i * 3 + 1] = p.y;
         positions[i * 3 + 2] = p.z;
@@ -2695,9 +2780,14 @@ function flyToDwarf(di) {
 
 function flyToSpacecraft(si) {
   const so = spacecraftObjs[si];
-  const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(AU_IN_EARTH_DIAMETERS);
-  // Pull close enough to see the short particle trail; cap minimum distance.
-  const dist = Math.max(2.5, pos.length() * 0.04);
+  const isTrue = state.scaleMode === 'true';
+  const isReal = state.scaleMode === 'real';
+  const scaleFactor = isTrue ? AU_IN_EARTH_DIAMETERS : (isReal ? 1 : sceneUnitsPerAU('schematic'));
+  const pos = spacecraftPositionAU(so.data, state.simDays).multiplyScalar(scaleFactor);
+  // Pull close enough to see the model/trail; cap minimum distance.
+  const dist = isTrue
+    ? Math.max(2.5, pos.length() * 0.04)
+    : Math.max(0.25, pos.length() * 0.15);
   const offset = new THREE.Vector3(dist*0.8, dist*0.5, dist*0.8);
   flyTo(pos.clone().add(offset), pos);
 }

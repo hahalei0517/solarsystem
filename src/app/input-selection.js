@@ -63,8 +63,13 @@ export function installSelectionHandlers({
       list.push(dwo.mesh);
       if (trueScale && dwo.marker && dwo.marker.visible) list.push(dwo.marker);
     }
-    if (state.showSpacecraft && trueScale) for (const so of spacecraftObjs) if (so.group.visible) {
-      if (so.marker && so.marker.visible) list.push(so.marker);
+    if (state.showSpacecraft) for (const so of spacecraftObjs) if (so.group.visible) {
+      if (trueScale) {
+        if (so.marker && so.marker.visible) list.push(so.marker);
+      } else if (so.model && so.model.visible) {
+        // The model is a Group of meshes; raycast recursively against it.
+        list.push(so.model);
+      }
     }
     return list;
   }
@@ -171,7 +176,13 @@ export function installSelectionHandlers({
     const meshes = clickableMeshes();
     const hits = raycaster.intersectObjects(meshes, false);
     if (!hits.length) return;
-    const obj = hits[0].object;
+    const rawObj = hits[0].object;
+    // Spacecraft model is a Group; hits land on child meshes. Walk up to find the owner.
+    const obj = (rawObj.userData && (rawObj.userData.spacecraftIdx != null || rawObj.userData.isModel))
+      ? rawObj
+      : (rawObj.parent && (rawObj.parent.userData.spacecraftIdx != null || rawObj.parent.userData.isModel)
+          ? rawObj.parent
+          : rawObj);
     if (obj.userData && obj.userData.isSun) {
       // Toggle: clicking the Sun solo-zooms in (like a planet); clicking again exits.
       if (state.soloSun) clearSoloMode();
@@ -250,26 +261,31 @@ export function installSelectionHandlers({
     const tip = document.getElementById('tip');
     if (hits.length) {
       const obj = hits[0].object;
-      if (obj !== hoveredObj) {
-        hoveredObj = obj;
-        const idx = (obj.userData && obj.userData.isMarker && typeof obj.userData.planetIdx === 'number')
-          ? obj.userData.planetIdx
-          : planetObjs.findIndex(po => po.mesh === obj);
+      // For grouped spacecraft models the hit may land on a child mesh; walk up to find userData.
+      const owner = (obj.userData && (obj.userData.spacecraftIdx != null || obj.userData.isMarker || obj.userData.isModel))
+        ? obj
+        : obj.parent;
+      if (owner !== hoveredObj) {
+        hoveredObj = owner;
+        const idx = (owner.userData && owner.userData.isMarker && typeof owner.userData.planetIdx === 'number')
+          ? owner.userData.planetIdx
+          : planetObjs.findIndex(po => po.mesh === owner);
         if (idx >= 0) soundApi.hover(idx); // tuned blip only for planets
       }
       let label;
-      if (obj.userData && obj.userData.isSun) {
+      const data = owner?.userData || obj.userData || {};
+      if (data && data.isSun) {
         label = bodyName(SUN);
-      } else if (obj.userData && typeof obj.userData.moonIdx === 'number') {
-        label = bodyName(planets[obj.userData.planetIdx].moons[obj.userData.moonIdx]);
-      } else if (obj.userData && typeof obj.userData.cometIdx === 'number') {
-        label = bodyName(comets[obj.userData.cometIdx]);
-      } else if (obj.userData && typeof obj.userData.dwarfIdx === 'number') {
-        label = bodyName(dwarfs[obj.userData.dwarfIdx]);
-      } else if (obj.userData && typeof obj.userData.spacecraftIdx === 'number') {
-        label = bodyName(spacecraft[obj.userData.spacecraftIdx]);
-      } else if (obj.userData && obj.userData.isMarker && typeof obj.userData.planetIdx === 'number') {
-        label = bodyName(planets[obj.userData.planetIdx]);
+      } else if (data && typeof data.moonIdx === 'number') {
+        label = bodyName(planets[data.planetIdx].moons[data.moonIdx]);
+      } else if (data && typeof data.cometIdx === 'number') {
+        label = bodyName(comets[data.cometIdx]);
+      } else if (data && typeof data.dwarfIdx === 'number') {
+        label = bodyName(dwarfs[data.dwarfIdx]);
+      } else if (data && typeof data.spacecraftIdx === 'number') {
+        label = bodyName(spacecraft[data.spacecraftIdx]);
+      } else if (data && data.isMarker && typeof data.planetIdx === 'number') {
+        label = bodyName(planets[data.planetIdx]);
       } else {
         const idx = planetObjs.findIndex(po => po.mesh === obj);
         label = idx >= 0 ? bodyName(planets[idx]) : '';
