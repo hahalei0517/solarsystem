@@ -10,3 +10,6 @@ test-results/
 
 # 音频源文件（部署用 MP3，见 public/audio/）
 *.wav
+
+# 脚本和截图资源（本地辅助，不进仓库）
+scripts/
