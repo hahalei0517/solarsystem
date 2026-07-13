@@ -13,3 +13,5 @@
 # Hashed build assets: immutable, cache aggressively.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+/3687f6d2f3c510c8f33c3c6808c96eb0.txt
+  Content-Type: text/plain
